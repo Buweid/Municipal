@@ -1,0 +1,32 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // This is the bridge for Firebase
+        classpath 'com.google.gms:google-services:4.4.1'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// Fixed the "Directory" assignment error here
+rootProject.layout.buildDirectory.value(rootProject.layout.buildDirectory.dir("../../build").get())
+
+subprojects {
+    project.layout.buildDirectory.value(rootProject.layout.buildDirectory.dir(project.name).get())
+}
+
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.layout.buildDirectory
+}

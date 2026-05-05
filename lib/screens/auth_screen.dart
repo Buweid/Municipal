@@ -12,6 +12,7 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen>
     with SingleTickerProviderStateMixin {
   bool isLogin = true;
+
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -25,15 +26,27 @@ class _AuthScreenState extends State<AuthScreen>
   @override
   void initState() {
     super.initState();
+
     _animController = AnimationController(
       duration: const Duration(milliseconds: 700),
       vsync: this,
     );
-    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+    );
+
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.06),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    ).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: Curves.easeOut,
+      ),
+    );
+
     _animController.forward();
   }
 
@@ -45,7 +58,11 @@ class _AuthScreenState extends State<AuthScreen>
 
   void _switchTab(bool loginTab) {
     if (isLogin == loginTab) return;
-    setState(() => isLogin = loginTab);
+
+    setState(() {
+      isLogin = loginTab;
+    });
+
     _animController.forward(from: 0);
   }
 
@@ -55,7 +72,6 @@ class _AuthScreenState extends State<AuthScreen>
       backgroundColor: _navy,
       body: Stack(
         children: [
-          // ── Decorative background geometry ──
           Positioned(
             top: -80,
             right: -80,
@@ -75,7 +91,6 @@ class _AuthScreenState extends State<AuthScreen>
           SafeArea(
             child: Column(
               children: [
-                // ── HERO / BRAND SECTION ──
                 Expanded(
                   flex: 4,
                   child: Padding(
@@ -83,7 +98,6 @@ class _AuthScreenState extends State<AuthScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Logo badge
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -109,7 +123,6 @@ class _AuthScreenState extends State<AuthScreen>
 
                         const SizedBox(height: 24),
 
-                        // Divider rule with dots
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -129,6 +142,7 @@ class _AuthScreenState extends State<AuthScreen>
 
                         const Text(
                           "MUSCAT\nMUNICIPALITY",
+                          key: Key("app_title"),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 28,
@@ -141,8 +155,9 @@ class _AuthScreenState extends State<AuthScreen>
 
                         const SizedBox(height: 10),
 
-                        Text(
+                        const Text(
                           "Municipality Reporting System",
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,
                             color: _gold,
@@ -155,6 +170,7 @@ class _AuthScreenState extends State<AuthScreen>
 
                         Text(
                           "نظام البلاغات البلدية",
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.white.withOpacity(0.45),
@@ -166,7 +182,6 @@ class _AuthScreenState extends State<AuthScreen>
                   ),
                 ),
 
-                // ── FORM PANEL ──
                 Expanded(
                   flex: 7,
                   child: Container(
@@ -186,7 +201,6 @@ class _AuthScreenState extends State<AuthScreen>
                     ),
                     child: Column(
                       children: [
-                        // Gold accent bar at top of panel
                         Container(
                           margin: const EdgeInsets.only(top: 12),
                           width: 40,
@@ -199,7 +213,6 @@ class _AuthScreenState extends State<AuthScreen>
 
                         const SizedBox(height: 20),
 
-                        // ── Toggle tabs ──
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: Container(
@@ -214,8 +227,16 @@ class _AuthScreenState extends State<AuthScreen>
                             ),
                             child: Row(
                               children: [
-                                _tab("Login", true),
-                                _tab("Register", false),
+                                _tab(
+                                  "Login",
+                                  true,
+                                  key: const Key("login_tab"),
+                                ),
+                                _tab(
+                                  "Register",
+                                  false,
+                                  key: const Key("register_tab"),
+                                ),
                               ],
                             ),
                           ),
@@ -223,7 +244,6 @@ class _AuthScreenState extends State<AuthScreen>
 
                         const SizedBox(height: 22),
 
-                        // ── Form body ──
                         Expanded(
                           child: FadeTransition(
                             opacity: _fadeAnim,
@@ -233,10 +253,10 @@ class _AuthScreenState extends State<AuthScreen>
                                 padding: const EdgeInsets.only(bottom: 20),
                                 physics: const BouncingScrollPhysics(),
                                 child: isLogin
-                                    ? const LoginForm(key: ValueKey("login"))
+                                    ? const LoginForm(key: Key("login_form"))
                                     : const RegisterForm(
-                                        key: ValueKey("register"),
-                                      ),
+                                  key: Key("register_form"),
+                                ),
                               ),
                             ),
                           ),
@@ -253,11 +273,12 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _tab(String text, bool loginTab) {
+  Widget _tab(String text, bool loginTab, {Key? key}) {
     final selected = isLogin == loginTab;
 
     return Expanded(
       child: GestureDetector(
+        key: key,
         onTap: () => _switchTab(loginTab),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 280),
@@ -265,22 +286,22 @@ class _AuthScreenState extends State<AuthScreen>
           padding: const EdgeInsets.symmetric(vertical: 13),
           decoration: BoxDecoration(
             gradient: selected
-                ? LinearGradient(
-                    colors: [_gold, _goldLight],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
+                ? const LinearGradient(
+              colors: [_gold, _goldLight],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            )
                 : null,
             color: selected ? null : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             boxShadow: selected
                 ? [
-                    BoxShadow(
-                      color: _gold.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
+              BoxShadow(
+                color: _gold.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ]
                 : [],
           ),
           child: Text(
@@ -299,19 +320,24 @@ class _AuthScreenState extends State<AuthScreen>
   }
 }
 
-// ── Helper widgets ──
-
 class _GlowCircle extends StatelessWidget {
   final double size;
   final Color color;
-  const _GlowCircle({required this.size, required this.color});
+
+  const _GlowCircle({
+    required this.size,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+      ),
     );
   }
 }

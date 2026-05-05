@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "942134042694",
+    "project_id": "municipality-app-bbf6f",
+    "storage_bucket": "municipality-app-bbf6f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:942134042694:android:93776c6ffea4032119ea47",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_fAbL4rczd95XPCbW1MVvoj31e7moHzk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

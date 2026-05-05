@@ -4,11 +4,7 @@ A new Flutter project.
 
 ## Getting Started
 
-//flutter clean
-//flutter pug get
-//fluter upgrade
-//flutter run
-//flutter test integration_test/app_test.dart
+This project is a starting point for a Flutter application.
 
 A few resources to get you started if this is your first Flutter project:
 

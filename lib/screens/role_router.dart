@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'add_fo_screen.dart';
 class RoleRouter extends StatelessWidget {
   final String role;
 
@@ -51,17 +51,28 @@ class AdminPage extends StatelessWidget {
           )
         ],
       ),
-      body: const Center(
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.admin_panel_settings, size: 80, color: Color(0xFF2E7D32)),
-            SizedBox(height: 16),
-            Text(
+            const Icon(Icons.admin_panel_settings, size: 80, color: Color(0xFF2E7D32)),
+            const SizedBox(height: 16),
+            const Text(
               "Administrator Access",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            Text("Manage municipality staff and reports here."),
+            const Text("Manage municipality staff and reports here."),
+            const SizedBox(height: 24), // ← breathing room
+            ElevatedButton.icon(
+              icon: const Icon(Icons.person_add),
+              label: const Text("Add Field Officer"),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AddFOScreen()),
+                );
+              },
+            ),
           ],
         ),
       ),

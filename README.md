@@ -1,5 +1,11 @@
 # flutter_application_1
+//flutter clean
+//flutter pug get
+//fluter upgrade
+//flutter run
+//flutter test integration_test/app_test.dart
 
+//npm install -g firebase-tools
 A new Flutter project.
 
 ## Getting Started

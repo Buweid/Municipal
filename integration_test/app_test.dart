@@ -7,6 +7,7 @@ import 'package:flutter_application_1/main.dart' as app;
 //fluter upgrade
 //flutter run
 //flutter test integration_test/app_test.dart
+//npm install -g firebase-tools
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 

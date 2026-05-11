@@ -72,112 +72,43 @@ class _AuthScreenState extends State<AuthScreen>
       backgroundColor: _navy,
       body: Stack(
         children: [
-          Positioned(
-            top: -80,
-            right: -80,
-            child: _GlowCircle(size: 280, color: _gold.withOpacity(0.07)),
-          ),
-          Positioned(
-            top: 160,
-            left: -60,
-            child: _GlowCircle(size: 160, color: _gold.withOpacity(0.05)),
-          ),
-          Positioned(
-            bottom: -40,
-            right: 40,
-            child: _GlowCircle(size: 120, color: _gold.withOpacity(0.04)),
-          ),
-
           SafeArea(
             child: Column(
               children: [
+                /// ✅ FIXED HERE (scrollable)
                 Expanded(
                   flex: 4,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: _cardBg,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: _gold.withOpacity(0.35),
-                              width: 1.5,
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(height: 40),
+
+                          const Text(
+                            "MUSCAT\nMUNICIPALITY",
+                            key: Key("app_title"),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _gold.withOpacity(0.12),
-                                blurRadius: 30,
-                                spreadRadius: 2,
-                              ),
-                            ],
                           ),
-                          child: Image.asset(
-                            'assets/images/logo1.jpeg',
-                            height: 68,
-                          ),
-                        ),
 
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 10),
 
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _GoldDot(),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 60,
-                              height: 1,
-                              color: _gold.withOpacity(0.4),
+                          const Text(
+                            "Municipality Reporting System",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: _gold,
                             ),
-                            const SizedBox(width: 8),
-                            _GoldDot(),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        const Text(
-                          "MUSCAT\nMUNICIPALITY",
-                          key: Key("app_title"),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: 4.0,
-                            height: 1.25,
                           ),
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        const Text(
-                          "Municipality Reporting System",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: _gold,
-                            letterSpacing: 1.8,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-
-                        const SizedBox(height: 4),
-
-                        Text(
-                          "نظام البلاغات البلدية",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white.withOpacity(0.45),
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -192,57 +123,24 @@ class _AuthScreenState extends State<AuthScreen>
                         topLeft: Radius.circular(36),
                         topRight: Radius.circular(36),
                       ),
-                      border: Border(
-                        top: BorderSide(
-                          color: _gold.withOpacity(0.25),
-                          width: 1.2,
-                        ),
-                      ),
                     ),
                     child: Column(
                       children: [
-                        Container(
-                          margin: const EdgeInsets.only(top: 12),
-                          width: 40,
-                          height: 3,
-                          decoration: BoxDecoration(
-                            color: _gold.withOpacity(0.5),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-
                         const SizedBox(height: 20),
 
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: _cardBg,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: _gold.withOpacity(0.2),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                _tab(
-                                  "Login",
-                                  true,
-                                  key: const Key("login_tab"),
-                                ),
-                                _tab(
-                                  "Register",
-                                  false,
-                                  key: const Key("register_tab"),
-                                ),
-                              ],
-                            ),
+                          child: Row(
+                            children: [
+                              _tab("Login", true,
+                                  key: const Key("login_tab")),
+                              _tab("Register", false,
+                                  key: const Key("register_tab")),
+                            ],
                           ),
                         ),
 
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 20),
 
                         Expanded(
                           child: FadeTransition(
@@ -250,13 +148,11 @@ class _AuthScreenState extends State<AuthScreen>
                             child: SlideTransition(
                               position: _slideAnim,
                               child: SingleChildScrollView(
-                                padding: const EdgeInsets.only(bottom: 20),
-                                physics: const BouncingScrollPhysics(),
                                 child: isLogin
-                                    ? const LoginForm(key: Key("login_form"))
+                                    ? const LoginForm(
+                                    key: Key("login_form"))
                                     : const RegisterForm(
-                                  key: Key("register_form"),
-                                ),
+                                    key: Key("register_form")),
                               ),
                             ),
                           ),
@@ -280,77 +176,17 @@ class _AuthScreenState extends State<AuthScreen>
       child: GestureDetector(
         key: key,
         onTap: () => _switchTab(loginTab),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(vertical: 13),
-          decoration: BoxDecoration(
-            gradient: selected
-                ? const LinearGradient(
-              colors: [_gold, _goldLight],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            )
-                : null,
-            color: selected ? null : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: selected
-                ? [
-              BoxShadow(
-                color: _gold.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ]
-                : [],
-          ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          color: selected ? _gold : Colors.transparent,
           child: Text(
             text,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: selected ? _navy : Colors.white.withOpacity(0.45),
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              letterSpacing: 0.8,
+              color: selected ? _navy : Colors.white,
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _GlowCircle extends StatelessWidget {
-  final double size;
-  final Color color;
-
-  const _GlowCircle({
-    required this.size,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
-    );
-  }
-}
-
-class _GoldDot extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 5,
-      height: 5,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: Color(0xFFBFA15A),
       ),
     );
   }

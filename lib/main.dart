@@ -2,9 +2,20 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'screens/auth_screen.dart';
 
-void main() async {
+//flutter clean
+//flutter pug get
+//fluter upgrade
+//flutter run
+//flutter test integration_test/app_test.dart
+
+//npm install -g firebase-tools
+
+Future<void> main({bool isTest = false}) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  if (!isTest) {
+    await Firebase.initializeApp();
+  }
 
   runApp(const MunicipalApp());
 }

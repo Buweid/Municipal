@@ -36,17 +36,14 @@ class _AddFOScreenState extends State<AddFOScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // Secondary app so admin stays logged in
     FirebaseApp? secondaryApp;
 
     try {
-      // 1. Create a secondary Firebase app instance
       secondaryApp = await Firebase.initializeApp(
         name: 'secondaryApp',
         options: Firebase.app().options,
       );
 
-      // 2. Create the FO account using secondary app
       final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
 
       final userCredential = await secondaryAuth
@@ -57,7 +54,6 @@ class _AddFOScreenState extends State<AddFOScreen> {
 
       final newUid = userCredential.user!.uid;
 
-      // 3. Save to Firestore with role: fo
       await FirebaseFirestore.instance
           .collection('users')
           .doc(newUid)
@@ -80,7 +76,6 @@ class _AddFOScreenState extends State<AddFOScreen> {
         ),
       );
 
-      // Clear form
       _nameController.clear();
       _nationalIdController.clear();
       _phoneController.clear();
@@ -100,7 +95,6 @@ class _AddFOScreenState extends State<AddFOScreen> {
       if (e.code == 'email-already-in-use') message = "Email already exists";
       else if (e.code == 'weak-password') message = "Password is too weak";
       else if (e.code == 'invalid-email') message = "Invalid email format";
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -111,7 +105,6 @@ class _AddFOScreenState extends State<AddFOScreen> {
         SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
     } finally {
-      // 4. Always delete secondary app to clean up
       await secondaryApp?.delete();
       if (mounted) setState(() => _isLoading = false);
     }
@@ -137,71 +130,103 @@ class _AddFOScreenState extends State<AddFOScreen> {
               ),
               const SizedBox(height: 28),
 
+              // Full Name
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
                   labelText: 'Full Name',
                   prefixIcon: Icon(Icons.person_outline),
+                  hintText: 'e.g. Ahmed Ali Al-Rashdi',
                 ),
-                validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Name is required' : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Full name is required';
+                  if (!RegExp(r"^[a-zA-Z\u0600-\u06FF\s\-']+$").hasMatch(v.trim())) {
+                    return 'Name must contain letters only';
+                  }
+                  final wordCount = v.trim().split(RegExp(r'\s+')).length;
+                  if (wordCount < 2) return 'Enter at least 2 names';
+                  if (wordCount > 5) return 'Name cannot exceed 5 words';
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
+              // National ID
               TextFormField(
                 controller: _nationalIdController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'National ID',
                   prefixIcon: Icon(Icons.badge_outlined),
+                  hintText: '8 - 12 digits',
                 ),
-                validator: (v) => v == null || v.trim().length < 8
-                    ? 'Enter valid national ID'
-                    : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'National ID is required';
+                  if (!RegExp(r'^\d{8,12}$').hasMatch(v.trim())) {
+                    return 'National ID must be 8 to 12 digits';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
+              // Phone
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
                   labelText: 'Phone Number',
                   prefixIcon: Icon(Icons.phone_outlined),
+                  hintText: '+968  7XXXXXXX or 9XXXXXXX',
                 ),
-                validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Phone is required' : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Phone number is required';
+                  if (!RegExp(r'^[79]\d{7}$').hasMatch(v.trim())) {
+                    return 'Must start with 7 or 9 and be 8 digits';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
+              // Email
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
                   labelText: 'Email',
                   prefixIcon: Icon(Icons.email_outlined),
+                  hintText: 'example@gmail.com',
                 ),
-                validator: (v) =>
-                v == null || !v.contains('@') ? 'Enter valid email' : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Email is required';
+                  if (!RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$').hasMatch(v.trim())) {
+                    return 'Enter a valid email address';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
+              // Password
               TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock_outline),
+                  hintText: '6 - 15 characters',
                   suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword
-                        ? Icons.visibility
-                        : Icons.visibility_off),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
+                    icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
-                validator: (v) => v == null || v.length < 6
-                    ? 'Password must be at least 6 characters'
-                    : null,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Password is required';
+                  if (v.length < 6) return 'Password must be at least 6 characters';
+                  if (v.length > 15) return 'Password cannot exceed 15 characters';
+                  return null;
+                },
               ),
               const SizedBox(height: 32),
 
@@ -219,10 +244,7 @@ class _AddFOScreenState extends State<AddFOScreen> {
                       strokeWidth: 2.5,
                     ),
                   )
-                      : const Text(
-                    "Create Field Officer",
-                    style: TextStyle(fontSize: 16),
-                  ),
+                      : const Text("Create Field Officer", style: TextStyle(fontSize: 16)),
                 ),
               ),
             ],

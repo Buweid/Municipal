@@ -45,14 +45,11 @@ class _RegisterFormState extends State<RegisterForm> {
           .createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
-      )
-          .timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 15));
 
       createdUser = userCredential.user;
 
-      if (createdUser == null) {
-        throw Exception("User creation failed");
-      }
+      if (createdUser == null) throw Exception("User creation failed");
 
       await FirebaseFirestore.instance
           .collection('users')
@@ -81,22 +78,18 @@ class _RegisterFormState extends State<RegisterForm> {
       _phoneController.clear();
       _emailController.clear();
       _passwordController.clear();
+
     } on TimeoutException {
       await _deleteCreatedUser(createdUser);
-
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            "Request timed out. Please check if Firestore is enabled.",
-          ),
+          content: Text("Request timed out. Please check if Firestore is enabled."),
           backgroundColor: Colors.red,
         ),
       );
     } on FirebaseAuthException catch (e) {
       String message = "Registration failed";
-
       switch (e.code) {
         case 'email-already-in-use':
           message = "Email already exists";
@@ -110,61 +103,37 @@ class _RegisterFormState extends State<RegisterForm> {
         default:
           message = e.message ?? "Authentication error";
       }
-
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
     } on FirebaseException catch (e) {
       await _deleteCreatedUser(createdUser);
-
       String message = "Failed to save user data";
-
       if (e.code == 'permission-denied') {
-        message =
-        "Firestore permission denied. Enable Firestore API and check rules.";
+        message = "Firestore permission denied. Enable Firestore API and check rules.";
       } else if (e.message != null) {
         message = e.message!;
       }
-
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
     } catch (e) {
       await _deleteCreatedUser(createdUser);
-
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Something went wrong: $e"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text("Something went wrong: $e"), backgroundColor: Colors.red),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _deleteCreatedUser(User? user) async {
     try {
-      if (user != null) {
-        await user.delete();
-      }
-    } catch (_) {
-      // ignored
-    }
+      if (user != null) await user.delete();
+    } catch (_) {}
   }
 
   @override
@@ -175,92 +144,106 @@ class _RegisterFormState extends State<RegisterForm> {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           children: [
+            // Full Name
             TextFormField(
               controller: _nameController,
               decoration: const InputDecoration(
                 labelText: 'Full Name',
                 prefixIcon: Icon(Icons.person_outline),
+                hintText: 'e.g. Ahmed Ali Al-Rashdi',
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Full name is required';
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Full name is required';
+                if (!RegExp(r"^[a-zA-Z\u0600-\u06FF\s\-']+$").hasMatch(v.trim())) {
+                  return 'Name must contain letters only';
                 }
+                final wordCount = v.trim().split(RegExp(r'\s+')).length;
+                if (wordCount < 2) return 'Enter at least 2 names';
+                if (wordCount > 5) return 'Name cannot exceed 5 words';
                 return null;
               },
             ),
             const SizedBox(height: 16),
+
+            // National ID
             TextFormField(
               controller: _nationalIdController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'National ID',
                 prefixIcon: Icon(Icons.badge_outlined),
+                hintText: '8 - 12 digits',
               ),
-              validator: (value) {
-                if (value == null || value.trim().length < 8) {
-                  return 'Enter valid national ID';
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'National ID is required';
+                if (!RegExp(r'^\d{8,12}$').hasMatch(v.trim())) {
+                  return 'National ID must be 8 to 12 digits';
                 }
                 return null;
               },
             ),
             const SizedBox(height: 16),
+
+            // Phone
             TextFormField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
                 labelText: 'Phone Number',
                 prefixIcon: Icon(Icons.phone_outlined),
+                hintText: '+968  7XXXXXXX or 9XXXXXXX',
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Phone number is required';
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Phone number is required';
+                if (!RegExp(r'^[79]\d{7}$').hasMatch(v.trim())) {
+                  return 'Must start with 7 or 9 and be 8 digits';
                 }
                 return null;
               },
             ),
             const SizedBox(height: 16),
+
+            // Email
             TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: 'Email',
                 prefixIcon: Icon(Icons.email_outlined),
+                hintText: 'example@gmail.com',
               ),
-              validator: (value) {
-                if (value == null ||
-                    value.trim().isEmpty ||
-                    !value.contains('@')) {
-                  return 'Enter valid email';
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Email is required';
+                if (!RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$').hasMatch(v.trim())) {
+                  return 'Enter a valid email address';
                 }
                 return null;
               },
             ),
             const SizedBox(height: 16),
+
+            // Password
             TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
               decoration: InputDecoration(
                 labelText: 'Password',
                 prefixIcon: const Icon(Icons.lock_outline),
+                hintText: '6 - 15 characters',
                 suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() => _obscurePassword = !_obscurePassword);
-                  },
+                  icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
-              validator: (value) {
-                if (value == null || value.length < 6) {
-                  return 'Password must be at least 6 characters';
-                }
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Password is required';
+                if (v.length < 6) return 'Password must be at least 6 characters';
+                if (v.length > 15) return 'Password cannot exceed 15 characters';
                 return null;
               },
             ),
             const SizedBox(height: 30),
+
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -275,10 +258,7 @@ class _RegisterFormState extends State<RegisterForm> {
                     strokeWidth: 2.5,
                   ),
                 )
-                    : const Text(
-                  "Register",
-                  style: TextStyle(fontSize: 16),
-                ),
+                    : const Text("Register", style: TextStyle(fontSize: 16)),
               ),
             ),
           ],

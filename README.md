@@ -1,4 +1,4 @@
-# flutter_application_1
+# How to Run
 //flutter clean
 //flutter pub get
 //fluter upgrade

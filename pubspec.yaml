@@ -31,11 +31,28 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations:   # For Arabic/English support
+  flutter_localizations:
     sdk: flutter
+
+  # Firebase
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.0
   cloud_firestore: ^5.4.0
+  firebase_storage: ^12.3.2    # ← fixed, v12 matches core v3
+
+  # Map
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+
+  # Location
+  geolocator: ^11.0.0
+  geocoding: ^3.0.0
+
+  # Image
+  image_picker: ^1.1.2
+
+  # Utils
+  uuid: ^4.4.0            # Generate unique issue IDs
   # For now (we'll add Firebase later if you want real auth)
   # google_fonts: ^6.2.1
   # flutter_svg: ^2.0.10   # if you want SVG icons

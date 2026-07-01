@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'add_fo_screen.dart';
+import "admin/manage_issue_types_screen.dart";
+import 'admin/manage_users_screen.dart';
+import 'user/submit_issue_screen.dart';
+import 'admin/issue_management_screen.dart';
+import 'fo/fo_tasks_screen.dart';
+
 class RoleRouter extends StatelessWidget {
   final String role;
 
@@ -73,6 +79,42 @@ class AdminPage extends StatelessWidget {
                 );
               },
             ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.people),
+              label: const Text("Manage Users"),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ManageUsersScreen(),
+                  ),
+                );
+              },
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.category),
+              label: const Text("Manage Issue Types"),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ManageIssueTypesScreen(),
+                  ),
+                );
+              },
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.report_outlined),
+              label: const Text("Manage Issues"),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const IssueManagementScreen(),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -85,31 +127,7 @@ class FOPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Field Officer"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _signOut(context),
-          )
-        ],
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.engineering, size: 80, color: Color(0xFF2E7D32)),
-            SizedBox(height: 16),
-            Text(
-              "Field Officer Portal",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            Text("View assigned inspection tasks."),
-          ],
-        ),
-      ),
-    );
+    return const FOTasksScreen();
   }
 }
 
@@ -140,12 +158,16 @@ class UserPage extends StatelessWidget {
             ),
             const Text("Submit a report or track your requests."),
             const SizedBox(height: 24),
-            ElevatedButton(
+            ElevatedButton.icon(
+              icon: const Icon(Icons.report_problem),
+              label: const Text("Submit New Report"),
               onPressed: () {
-                // Navigate to report submission form
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SubmitIssueScreen()),
+                );
               },
-              child: const Text("Submit New Report"),
-            )
+            ),
           ],
         ),
       ),

@@ -6,6 +6,9 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import '../services/notification_service.dart';
+import '../../widgets/notification_bell.dart';
+import '../services/audit_service.dart';
 
 class FOTasksScreen extends StatefulWidget {
   const FOTasksScreen({super.key});
@@ -107,7 +110,23 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
         'acceptedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
+      final issueDoc = await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .get();
+      final data = issueDoc.data()!;
+      await NotificationService.send(
+        uid: data['uid'],
+        title: 'Task Accepted 👷',
+        body: 'A field officer has accepted your issue "${data['title']}"',
+        type: 'task_accepted',
+        issueId: issueId,
+      );
+      await AuditService.log(
+        action: 'TASK_ACCEPTED',
+        description: 'Field officer accepted task',
+        metadata: {'issueId': issueId},
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -184,7 +203,11 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
         'rejectedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
+      await AuditService.log(
+        action: 'TASK_REJECTED',
+        description: 'Field officer rejected task',
+        metadata: {'issueId': issueId, 'reason': confirm},
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -240,7 +263,28 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
         'taskStatus': nextStatuses.first,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      final issueDoc = await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .get();
+      final data = issueDoc.data()!;
 
+      final isCompleted = nextStatuses.first == 'completed';
+      await NotificationService.send(
+        uid: data['uid'],
+        title: isCompleted ? 'Issue Resolved ✅' : 'Work In Progress 🔧',
+        body: isCompleted
+            ? 'Your issue "${data['title']}" has been resolved'
+            : 'Work has started on your issue "${data['title']}"',
+        type: isCompleted ? 'issue_resolved' : 'issue_in_progress',
+        issueId: issueId,
+      );
+
+      await AuditService.log(
+        action: 'PROGRESS_UPDATED',
+        description: 'Field officer updated task to "${nextStatuses.first}"',
+        metadata: {'issueId': issueId, 'newStatus': nextStatuses.first},
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -287,7 +331,11 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
         'evidenceUploadedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
+      await AuditService.log(
+        action: 'EVIDENCE_UPLOADED',
+        description: 'Field officer uploaded completion evidence',
+        metadata: {'issueId': issueId},
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -625,6 +673,9 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Tasks'),
+        actions: [
+          const NotificationBell(),
+        ],
       ),
       body: Column(
         children: [

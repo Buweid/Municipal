@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import '../screens/services/audit_service.dart';
 
 class AddFOScreen extends StatefulWidget {
   const AddFOScreen({super.key});
@@ -66,7 +67,14 @@ class _AddFOScreenState extends State<AddFOScreen> {
         'role': 'fo',
         'createdAt': FieldValue.serverTimestamp(),
       }).timeout(const Duration(seconds: 10));
-
+      await AuditService.log(
+        action: 'FO_CREATED',
+        description: 'Admin created field officer "${_nameController.text.trim()}"',
+        metadata: {
+          'foUid': newUid,
+          'foEmail': _emailController.text.trim(),
+        },
+      );
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(

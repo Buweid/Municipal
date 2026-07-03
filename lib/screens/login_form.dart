@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'role_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';  // ADD THIS
+import '../screens/services/audit_service.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -40,7 +41,11 @@ class _LoginFormState extends State<LoginForm> {
           .get();
 
       final role = doc.data()?['role'] ?? 'user';  // default to 'user' if missing
-
+      await AuditService.log(
+        action: 'LOGIN',
+        description: 'User logged in',
+        metadata: {'email': _emailController.text.trim()},
+      );
       if (!mounted) return;
 
       // 3. Route by role

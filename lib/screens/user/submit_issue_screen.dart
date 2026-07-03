@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
 import 'location_picker_screen.dart';
+import '../services/audit_service.dart'; // ← add import
 
 class SubmitIssueScreen extends StatefulWidget {
   const SubmitIssueScreen({super.key});
@@ -205,7 +206,14 @@ class _SubmitIssueScreenState extends State<SubmitIssueScreen> {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
+      await AuditService.log(
+        action: 'ISSUE_SUBMITTED',
+        description: 'Citizen submitted issue "${_titleController.text.trim()}"',
+        metadata: {
+          'issueId': issueId,
+          'issueType': _selectedIssueType,
+        },
+      );
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(

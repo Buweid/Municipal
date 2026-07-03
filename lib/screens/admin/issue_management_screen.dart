@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../services/notification_service.dart';
+import '../services/audit_service.dart';
 
 class IssueManagementScreen extends StatefulWidget {
   const IssueManagementScreen({super.key});
@@ -102,7 +104,23 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
         'status': 'approved',
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
+      final issueDoc = await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .get();
+      final data = issueDoc.data()!;
+      await NotificationService.send(
+        uid: data['uid'],
+        title: 'Issue Approved ✅',
+        body: 'Your issue "${data['title']}" has been approved',
+        type: 'issue_approved',
+        issueId: issueId,
+      );
+      await AuditService.log(
+        action: 'ISSUE_APPROVED',
+        description: 'Admin approved issue "${data['title']}"',
+        metadata: {'issueId': issueId, 'issueTitle': data['title']},
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -176,6 +194,23 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
         'status': 'rejected',
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      final issueDoc = await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .get();
+      final data = issueDoc.data()!;
+      await NotificationService.send(
+        uid: data['uid'],
+        title: 'Issue Rejected ❌',
+        body: 'Your issue "${data['title']}" has been rejected',
+        type: 'issue_rejected',
+        issueId: issueId,
+      );
+      await AuditService.log(
+        action: 'ISSUE_REJECTED',
+        description: 'Admin rejected issue "${data['title']}"',
+        metadata: {'issueId': issueId, 'issueTitle': data['title']},
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -253,7 +288,11 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
         'status': selected,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
+      await AuditService.log(
+        action: 'STATUS_UPDATED',
+        description: 'Admin updated issue status to "$selected"',
+        metadata: {'issueId': issueId, 'newStatus': selected},
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -279,6 +318,7 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
         .get();
 
     if (foSnap.docs.isEmpty) {
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -342,7 +382,27 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
         'taskStatus': 'assigned', // FO-specific status
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
+      final issueDoc = await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .get();
+      final data = issueDoc.data()!;
+      await NotificationService.send(
+        uid: selectedFOId!,
+        title: 'New Task Assigned 📋',
+        body: 'You have been assigned to "${data['title']}"',
+        type: 'task_assigned',
+        issueId: issueId,
+      );
+      await AuditService.log(
+        action: 'TASK_ASSIGNED',
+        description: 'Admin assigned "${data['title']}" to $selectedFOName',
+        metadata: {
+          'issueId': issueId,
+          'assignedTo': selectedFOId,
+          'assignedToName': selectedFOName,
+        },
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -4,8 +4,9 @@ import 'package:http/http.dart' as http;
 class AIService {
   static const String _apiUrl =
       'https://api.groq.com/openai/v1/chat/completions';
-  static const String _apiKey = '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'; // ← paste here
-  static const String _model = 'llama-3.1-8b-instant'; // fast + free
+  
+  static const String _apiKey = ''; // ← paste here
+  static const String _model = 'llama-3.1-8b-instant';
 
   static const String _systemPrompt = '''You are a helpful assistant 
 for Muscat Municipality's reporting system in Oman. Help citizens 

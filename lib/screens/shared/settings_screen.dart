@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../main.dart';
 import '../constants/app_theme.dart';
 import '../../providers/settings_provider.dart';
 
@@ -13,6 +14,7 @@ class SettingsScreen extends StatelessWidget {
     final isDark = settings.isDarkMode;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(settings.isArabic ? 'الإعدادات' : 'Settings'),
       ),
@@ -58,17 +60,27 @@ class SettingsScreen extends StatelessWidget {
                 flag: '🇬🇧',
                 language: 'English',
                 isSelected: settings.language == 'en',
-                onTap: () => settings.setLanguage('en'),
+                onTap: () async {
+                  if (settings.language == 'en') return;
+                  FocusScope.of(context).unfocus(); // ← dismiss keyboard first
+                  await settings.setLanguage('en');
+                  await Future.delayed(const Duration(milliseconds: 300)); // ← wait for keyboard to close
+                  if (context.mounted) RestartWidget.restartApp(context);
+                },
               ),
               const Divider(height: 1, indent: 56),
               _LanguageTile(
                 flag: '🇴🇲',
                 language: 'العربية',
                 isSelected: settings.language == 'ar',
-                onTap: () => settings.setLanguage('ar'),
+                onTap: () async {
+                  if (settings.language == 'ar') return;
+                  FocusScope.of(context).unfocus(); // ← dismiss keyboard first
+                  await settings.setLanguage('ar');
+                  await Future.delayed(const Duration(milliseconds: 300)); // ← wait for keyboard to close
+                  if (context.mounted) RestartWidget.restartApp(context);
+                },
               ),
-            ],
-          ),
           const SizedBox(height: AppTheme.spaceMd),
 
           // ── NOTIFICATIONS ─────────────────────────────
@@ -191,7 +203,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: AppTheme.spaceLg),
         ],
       ),
-    );
+    ]));
   }
 }
 

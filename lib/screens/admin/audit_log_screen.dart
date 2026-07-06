@@ -82,6 +82,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Activity Log'),
       ),
@@ -190,7 +191,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
 
                     return Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: const [
                           BoxShadow(

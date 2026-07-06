@@ -149,10 +149,8 @@ class _AuthScreenState extends State<AuthScreen>
                               position: _slideAnim,
                               child: SingleChildScrollView(
                                 child: isLogin
-                                    ? const LoginForm(
-                                    key: Key("login_form"))
-                                    : const RegisterForm(
-                                    key: Key("register_form")),
+                                    ? const  LoginForm()
+                                    : const  RegisterForm()
                               ),
                             ),
                           ),
@@ -174,7 +172,7 @@ class _AuthScreenState extends State<AuthScreen>
 
     return Expanded(
       child: GestureDetector(
-        key: key,
+
         onTap: () => _switchTab(loginTab),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),

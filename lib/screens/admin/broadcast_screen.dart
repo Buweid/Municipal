@@ -159,6 +159,7 @@ class _BroadcastScreenState extends State<BroadcastScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Notification Management'),
         bottom: TabBar(
@@ -432,7 +433,7 @@ class _BroadcastScreenState extends State<BroadcastScreen>
 
                   return Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: const [
                         BoxShadow(

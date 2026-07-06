@@ -227,6 +227,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Manage Users'),
       ),
@@ -354,7 +355,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
 
                     return Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: const [
                           BoxShadow(color: Color(0x0A000000), blurRadius: 6),

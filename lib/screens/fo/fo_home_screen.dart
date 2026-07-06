@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../constants/app_theme.dart';
+import 'package:flutter_application_1/l10n/app_localizations.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/section_header.dart';
+import '../constants/app_theme.dart';
+import '../shared/chatbot_screen.dart';
 import 'fo_tasks_screen.dart';
 import '../user/update_profile_screen.dart';
 
@@ -62,7 +64,10 @@ class _FOHomeScreenState extends State<FOHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor(context),
       body: IndexedStack(
         index: _currentIndex,
         children: [
@@ -73,36 +78,54 @@ class _FOHomeScreenState extends State<FOHomeScreen> {
             onTasksTap: () => setState(() => _currentIndex = 1),
           ),
           const FOTasksScreen(),
-          const UpdateProfileScreen(),
         ],
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.surface,
-          border: Border(top: BorderSide(color: AppTheme.border)),
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor(context),
+          border: Border(
+            top: BorderSide(color: AppTheme.borderColor(context)),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (i) => setState(() => _currentIndex = i),
-          backgroundColor: AppTheme.surface,
+          onTap: (i) {
+            if (i == 2) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UpdateProfileScreen()),
+              );
+              return;
+            }
+            setState(() => _currentIndex = i);
+          },
+          backgroundColor: AppTheme.cardColor(context),
           elevation: 0,
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
+              icon: const Icon(Icons.home_outlined),
+              activeIcon: const Icon(Icons.home),
+              label: l10n.home,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.assignment_outlined),
-              activeIcon: Icon(Icons.assignment),
-              label: 'My Tasks',
+              icon: const Icon(Icons.assignment_outlined),
+              activeIcon: const Icon(Icons.assignment),
+              label: l10n.myTasks,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profile',
+              icon: const Icon(Icons.person_outline),
+              activeIcon: const Icon(Icons.person),
+              label: l10n.profile,
             ),
           ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppTheme.primary,
+        child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ChatbotScreen()),
         ),
       ),
     );
@@ -124,28 +147,29 @@ class _FOHomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.backgroundColor(context),
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
+        backgroundColor: AppTheme.backgroundColor(context),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Hello, ${foName.split(' ').first} 👷',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: AppTheme.textPrimaryColor(context),
               ),
             ),
-            const Text(
-              'Field Officer Portal',
+            Text(
+              l10n.fieldOfficer,
               style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.textSecondary,
+                color: AppTheme.textSecondaryColor(context),
                 fontWeight: FontWeight.w400,
               ),
             ),
@@ -155,8 +179,8 @@ class _FOHomeTab extends StatelessWidget {
         actions: [
           const NotificationBell(),
           IconButton(
-            icon: const Icon(Icons.logout_outlined,
-                color: AppTheme.textSecondary),
+            icon: Icon(Icons.logout_outlined,
+                color: AppTheme.textSecondaryColor(context)),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
@@ -185,8 +209,7 @@ class _FOHomeTab extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius:
-                  BorderRadius.circular(AppTheme.radiusLg),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 ),
                 child: Row(
                   children: [
@@ -194,9 +217,9 @@ class _FOHomeTab extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Your tasks\nfor today',
-                            style: TextStyle(
+                          Text(
+                            l10n.yourTasksToday,
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
@@ -214,9 +237,9 @@ class _FOHomeTab extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(
                                     AppTheme.radiusMd),
                               ),
-                              child: const Text(
-                                'View Tasks →',
-                                style: TextStyle(
+                              child: Text(
+                                l10n.viewTasks,
+                                style: const TextStyle(
                                   color: Color(0xFF7C3AED),
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13,
@@ -238,14 +261,14 @@ class _FOHomeTab extends StatelessWidget {
               const SizedBox(height: AppTheme.spaceLg),
 
               // ── TASK STATS ────────────────────────────
-              const SectionHeader(title: 'Task Overview'),
+              SectionHeader(title: l10n.taskOverview),
               const SizedBox(height: AppTheme.spaceMd),
               Row(
                 children: [
                   Expanded(
                     child: _FOStatCard(
                       value: (taskStats['total'] ?? 0).toString(),
-                      label: 'Total',
+                      label: l10n.total,
                       color: AppTheme.info,
                       icon: Icons.assignment_outlined,
                     ),
@@ -254,7 +277,7 @@ class _FOHomeTab extends StatelessWidget {
                   Expanded(
                     child: _FOStatCard(
                       value: (taskStats['assigned'] ?? 0).toString(),
-                      label: 'New',
+                      label: l10n.newTasks,
                       color: AppTheme.warning,
                       icon: Icons.new_releases_outlined,
                     ),
@@ -263,7 +286,7 @@ class _FOHomeTab extends StatelessWidget {
                   Expanded(
                     child: _FOStatCard(
                       value: (taskStats['completed'] ?? 0).toString(),
-                      label: 'Done',
+                      label: l10n.doneTasks,
                       color: AppTheme.primary,
                       icon: Icons.task_alt,
                     ),
@@ -274,8 +297,8 @@ class _FOHomeTab extends StatelessWidget {
 
               // ── PENDING TASKS ─────────────────────────
               SectionHeader(
-                title: 'Pending Tasks',
-                actionLabel: 'See all',
+                title: l10n.pendingTasks,
+                actionLabel: l10n.seeAll,
                 onAction: onTasksTap,
               ),
               const SizedBox(height: AppTheme.spaceMd),
@@ -289,23 +312,21 @@ class _FOHomeTab extends StatelessWidget {
                     .limit(3)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(
-                        child: CircularProgressIndicator());
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
                   }
 
                   final docs = snapshot.data?.docs ?? [];
 
                   if (docs.isEmpty) {
                     return AppCard(
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
                         child: Center(
                           child: Text(
-                            'No pending tasks 🎉',
+                            l10n.noPendingTasks,
                             style: TextStyle(
-                              color: AppTheme.textSecondary,
+                              color: AppTheme.textSecondaryColor(context),
                               fontSize: 14,
                             ),
                           ),
@@ -316,8 +337,7 @@ class _FOHomeTab extends StatelessWidget {
 
                   return Column(
                     children: docs.map((doc) {
-                      final data =
-                      doc.data() as Map<String, dynamic>;
+                      final data = doc.data() as Map<String, dynamic>;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: AppCard(
@@ -327,8 +347,7 @@ class _FOHomeTab extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.warning
-                                      .withOpacity(0.1),
+                                  color: AppTheme.warning.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(
                                       AppTheme.radiusSm),
                                 ),
@@ -346,26 +365,31 @@ class _FOHomeTab extends StatelessWidget {
                                   children: [
                                     Text(
                                       data['title'] ?? '',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 14,
+                                        color:
+                                        AppTheme.textPrimaryColor(context),
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     Text(
                                       data['issueType'] ?? '',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: AppTheme.textSecondary,
+                                        color: AppTheme.textSecondaryColor(
+                                            context),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.chevron_right,
-                                  color: AppTheme.textSecondary,
-                                  size: 20),
+                              Icon(
+                                Icons.chevron_right,
+                                color: AppTheme.textSecondaryColor(context),
+                                size: 20,
+                              ),
                             ],
                           ),
                         ),
@@ -400,10 +424,16 @@ class _FOStatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: AppTheme.cardShadow,
+        border: Border.all(color: AppTheme.borderColor(context)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.shadowColor(context),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,9 +450,9 @@ class _FOStatCard extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: AppTheme.textSecondary,
+              color: AppTheme.textSecondaryColor(context),
             ),
           ),
         ],

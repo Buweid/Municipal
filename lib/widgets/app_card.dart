@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../screens/constants/app_theme.dart';
+
 
 class AppCard extends StatelessWidget {
   final Widget child;
@@ -21,10 +23,16 @@ class AppCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: color ?? AppTheme.surface,
+          color: color ?? AppTheme.cardColor(context),
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          border: Border.all(color: AppTheme.border),
-          boxShadow: AppTheme.cardShadow,
+          border: Border.all(color: AppTheme.borderColor(context)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.shadowColor(context),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),

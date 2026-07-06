@@ -2,34 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsProvider extends ChangeNotifier {
-  // ── KEYS ─────────────────────────────────────────────────────────
   static const String _keyDarkMode = 'dark_mode';
   static const String _keyLanguage = 'language';
   static const String _keyNotifIssueUpdates = 'notif_issue_updates';
   static const String _keyNotifBroadcast = 'notif_broadcast';
   static const String _keyNotifTasks = 'notif_tasks';
 
-  // ── STATE ─────────────────────────────────────────────────────────
   bool _isDarkMode = false;
   String _language = 'en';
   bool _notifIssueUpdates = true;
   bool _notifBroadcast = true;
   bool _notifTasks = true;
 
-  // ── GETTERS ──────────────────────────────────────────────────────
   bool get isDarkMode => _isDarkMode;
   String get language => _language;
   bool get isArabic => _language == 'ar';
   bool get notifIssueUpdates => _notifIssueUpdates;
   bool get notifBroadcast => _notifBroadcast;
   bool get notifTasks => _notifTasks;
-
   ThemeMode get themeMode =>
       _isDarkMode ? ThemeMode.dark : ThemeMode.light;
-
   Locale get locale => Locale(_language);
 
-  // ── LOAD FROM PREFS ───────────────────────────────────────────────
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _isDarkMode = prefs.getBool(_keyDarkMode) ?? false;
@@ -40,19 +34,21 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── SETTERS ──────────────────────────────────────────────────────
   Future<void> toggleDarkMode() async {
     _isDarkMode = !_isDarkMode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyDarkMode, _isDarkMode);
-    notifyListeners();
+    notifyListeners(); // ← dark mode is safe to notify immediately
   }
 
+  // ← Language saves to prefs but does NOT notify
+  // App restart is required — call RestartWidget.restartApp(context) after this
   Future<void> setLanguage(String lang) async {
+    if (_language == lang) return;
     _language = lang;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyLanguage, lang);
-    notifyListeners();
+    // No notifyListeners() here — restart handles it
   }
 
   Future<void> toggleNotifIssueUpdates() async {

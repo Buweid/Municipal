@@ -409,6 +409,7 @@ class _MyIssuesScreenState extends State<MyIssuesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('My Issues'),
       ),
@@ -514,7 +515,7 @@ class _MyIssuesScreenState extends State<MyIssuesScreen> {
                       onTap: () => _showIssueDetail(data, doc.id),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: const [
                             BoxShadow(

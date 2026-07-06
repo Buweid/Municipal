@@ -19,6 +19,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: IndexedStack(
         index: _currentIndex,
         children: const [
@@ -26,18 +27,26 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           IssueManagementScreen(),
           ManageUsersScreen(),
           AnalyticsScreen(),
-          UpdateProfileScreen(), // ← removed duplicate const
         ],
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.surface,
-          border: Border(top: BorderSide(color: AppTheme.border)),
+        decoration:  BoxDecoration(
+          color: AppTheme.cardColor(context),
+          border: Border(top: BorderSide(color: AppTheme.borderColor(context))),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (i) => setState(() => _currentIndex = i),
-          backgroundColor: AppTheme.surface,
+          onTap: (i) {
+            if (i == 4) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UpdateProfileScreen()),
+              );
+              return;
+            }
+            setState(() => _currentIndex = i);
+          },
+          backgroundColor: AppTheme.cardColor(context),
           elevation: 0,
           items: const [
             BottomNavigationBarItem(

@@ -241,6 +241,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     final isDark = settings.isDarkMode;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(isArabic ? 'الملف الشخصي' : 'Profile'),
         actions: [

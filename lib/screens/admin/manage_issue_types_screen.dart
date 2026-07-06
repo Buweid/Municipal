@@ -135,6 +135,7 @@ class _ManageIssueTypesScreenState extends State<ManageIssueTypesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Manage Issue Types'),
       ),
@@ -145,7 +146,7 @@ class _ManageIssueTypesScreenState extends State<ManageIssueTypesScreen> {
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               boxShadow: const [
                 BoxShadow(color: Color(0x11000000), blurRadius: 8),

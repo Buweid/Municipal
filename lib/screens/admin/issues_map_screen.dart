@@ -208,6 +208,7 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Issues Map'),
         bottom: TabBar(
@@ -332,7 +333,7 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
 
               // Legend
               Container(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 8),
                 child: Row(
@@ -417,7 +418,7 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: const [
                       BoxShadow(
@@ -456,7 +457,7 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: const [
                       BoxShadow(

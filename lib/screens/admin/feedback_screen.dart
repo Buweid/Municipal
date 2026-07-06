@@ -139,6 +139,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Feedback & Ratings'),
       ),
@@ -245,7 +246,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                       margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: const [
                           BoxShadow(

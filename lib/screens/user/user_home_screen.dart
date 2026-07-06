@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../constants/app_theme.dart';
+import 'package:flutter_application_1/l10n/app_localizations.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/section_header.dart';
+import '../constants/app_theme.dart';
+import '../shared/chatbot_screen.dart';
 import 'submit_issue_screen.dart';
 import 'my_issues_screen.dart';
 import 'update_profile_screen.dart';
@@ -60,10 +62,12 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: IndexedStack(
         index: _currentIndex,
         children: [
@@ -76,41 +80,55 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           ),
           const SubmitIssueScreen(),
           const MyIssuesScreen(),
-          const UpdateProfileScreen(),
         ],
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.surface,
-          border: Border(top: BorderSide(color: AppTheme.border)),
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor(context),
+          border: Border(top: BorderSide(color: AppTheme.borderColor(context))),
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (i) => setState(() => _currentIndex = i),
-          backgroundColor: AppTheme.surface,
-          elevation: 0,
-          items: const [
+          currentIndex: _currentIndex > 2 ? 0 : _currentIndex,
+          onTap: (i) {
+            if (i == 3) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UpdateProfileScreen()),
+              );
+              return;
+            }
+            setState(() => _currentIndex = i);
+          },
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
+              icon: const Icon(Icons.home_outlined),
+              activeIcon: const Icon(Icons.home),
+              label: l10n.home,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline),
-              activeIcon: Icon(Icons.add_circle),
-              label: 'Report',
+              icon: const Icon(Icons.add_circle_outline),
+              activeIcon: const Icon(Icons.add_circle),
+              label: l10n.submitReport,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.list_alt_outlined),
-              activeIcon: Icon(Icons.list_alt),
-              label: 'My Issues',
+              icon: const Icon(Icons.list_alt_outlined),
+              activeIcon: const Icon(Icons.list_alt),
+              label: l10n.myIssues,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profile',
+              icon: const Icon(Icons.person_outline),
+              activeIcon: const Icon(Icons.person),
+              label: l10n.profile,
             ),
           ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppTheme.primary,
+        child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ChatbotScreen()),
         ),
       ),
     );
@@ -135,26 +153,28 @@ class _HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
+        backgroundColor: AppTheme.backgroundColor(context),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Hello, ${userName.split(' ').first} 👋',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: AppTheme.textPrimaryColor(context),
               ),
             ),
-            const Text(
-              'Muscat Municipality',
+            Text(
+              l10n.appName,
               style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.textSecondary,
+                color: AppTheme.textSecondaryColor(context),
                 fontWeight: FontWeight.w400,
               ),
             ),
@@ -164,8 +184,8 @@ class _HomeTab extends StatelessWidget {
         actions: [
           const NotificationBell(),
           IconButton(
-            icon: const Icon(Icons.logout_outlined,
-                color: AppTheme.textSecondary),
+            icon: Icon(Icons.logout_outlined,
+                color: AppTheme.textSecondaryColor(context)),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
@@ -190,22 +210,18 @@ class _HomeTab extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [
-                      AppTheme.primary,
-                      AppTheme.primaryDark,
-                    ],
+                    colors: [AppTheme.primary, AppTheme.primaryDark],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius:
-                  BorderRadius.circular(AppTheme.radiusLg),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'See something that\nneeds fixing?',
-                      style: TextStyle(
+                    Text(
+                      l10n.seeMoreIssues,
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
@@ -213,9 +229,9 @@ class _HomeTab extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Report it to your municipality in seconds.',
-                      style: TextStyle(
+                    Text(
+                      l10n.reportInSeconds,
+                      style: const TextStyle(
                         fontSize: 13,
                         color: Colors.white70,
                       ),
@@ -229,19 +245,19 @@ class _HomeTab extends StatelessWidget {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(
-                              AppTheme.radiusMd),
+                          color: Theme.of(context).cardColor,
+                          borderRadius:
+                          BorderRadius.circular(AppTheme.radiusMd),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add,
+                            const Icon(Icons.add,
                                 color: AppTheme.primary, size: 18),
-                            SizedBox(width: 6),
+                            const SizedBox(width: 6),
                             Text(
-                              'Submit Report',
-                              style: TextStyle(
+                              l10n.submitReport,
+                              style: const TextStyle(
                                 color: AppTheme.primary,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 14,
@@ -258,8 +274,8 @@ class _HomeTab extends StatelessWidget {
 
               // ── MY STATS ──────────────────────────────
               SectionHeader(
-                title: 'My Reports',
-                actionLabel: 'View all',
+                title: l10n.myReports,
+                actionLabel: l10n.viewAll,
                 onAction: onIssuesTap,
               ),
               const SizedBox(height: AppTheme.spaceMd),
@@ -268,7 +284,7 @@ class _HomeTab extends StatelessWidget {
                   Expanded(
                     child: _StatCard(
                       value: (issueStats['total'] ?? 0).toString(),
-                      label: 'Total',
+                      label: l10n.total,
                       color: AppTheme.info,
                       icon: Icons.report_outlined,
                     ),
@@ -277,7 +293,7 @@ class _HomeTab extends StatelessWidget {
                   Expanded(
                     child: _StatCard(
                       value: (issueStats['pending'] ?? 0).toString(),
-                      label: 'Pending',
+                      label: l10n.pending,
                       color: AppTheme.warning,
                       icon: Icons.hourglass_empty,
                     ),
@@ -286,7 +302,7 @@ class _HomeTab extends StatelessWidget {
                   Expanded(
                     child: _StatCard(
                       value: (issueStats['resolved'] ?? 0).toString(),
-                      label: 'Resolved',
+                      label: l10n.resolved,
                       color: AppTheme.primary,
                       icon: Icons.task_alt,
                     ),
@@ -296,14 +312,14 @@ class _HomeTab extends StatelessWidget {
               const SizedBox(height: AppTheme.spaceLg),
 
               // ── QUICK ACTIONS ─────────────────────────
-              const SectionHeader(title: 'Quick Actions'),
+              SectionHeader(title: l10n.quickActions),
               const SizedBox(height: AppTheme.spaceMd),
               Row(
                 children: [
                   Expanded(
                     child: _QuickAction(
                       icon: Icons.add_circle_outline,
-                      label: 'New Report',
+                      label: l10n.submitReport,
                       color: AppTheme.primary,
                       onTap: onSubmitTap,
                     ),
@@ -312,7 +328,7 @@ class _HomeTab extends StatelessWidget {
                   Expanded(
                     child: _QuickAction(
                       icon: Icons.list_alt_outlined,
-                      label: 'My Issues',
+                      label: l10n.myIssues,
                       color: AppTheme.info,
                       onTap: onIssuesTap,
                     ),
@@ -322,7 +338,7 @@ class _HomeTab extends StatelessWidget {
               const SizedBox(height: AppTheme.spaceLg),
 
               // ── RECENT ISSUES ─────────────────────────
-              const SectionHeader(title: 'Recent Reports'),
+              SectionHeader(title: l10n.recentReports),
               const SizedBox(height: AppTheme.spaceMd),
               _RecentIssuesList(),
             ],
@@ -351,10 +367,15 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: AppTheme.cardShadow,
+        border: Border.all(color: AppTheme.borderColor(context)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.shadowColor(context),
+            blurRadius: 6,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,9 +392,9 @@ class _StatCard extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: AppTheme.textSecondary,
+              color: AppTheme.textSecondaryColor(context),
             ),
           ),
         ],
@@ -402,7 +423,9 @@ class _QuickAction extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: AppTheme.isDark(context)
+              ? color.withOpacity(0.15)
+              : color.withOpacity(0.08),
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(color: color.withOpacity(0.2)),
         ),
@@ -428,6 +451,7 @@ class _QuickAction extends StatelessWidget {
 class _RecentIssuesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
     return StreamBuilder<QuerySnapshot>(
@@ -454,22 +478,24 @@ class _RecentIssuesList extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 12),
-                Icon(Icons.inbox_outlined,
-                    size: 40,
-                    color: AppTheme.textSecondary.withOpacity(0.4)),
+                Icon(
+                  Icons.inbox_outlined,
+                  size: 40,
+                  color: AppTheme.textSecondaryColor(context).withOpacity(0.4),
+                ),
                 const SizedBox(height: 8),
-                const Text(
-                  'No reports yet',
+                Text(
+                  l10n.noReportsYet,
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: AppTheme.textSecondaryColor(context),
                     fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Tap "Submit Report" to get started',
+                Text(
+                  l10n.tapToSubmit,
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: AppTheme.textSecondaryColor(context),
                     fontSize: 12,
                   ),
                 ),
@@ -513,9 +539,10 @@ class _RecentIssuesList extends StatelessWidget {
                         children: [
                           Text(
                             data['title'] ?? '',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
+                              color: AppTheme.textPrimaryColor(context),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -523,9 +550,9 @@ class _RecentIssuesList extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             data['issueType'] ?? '',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: AppTheme.textSecondary,
+                              color: AppTheme.textSecondaryColor(context),
                             ),
                           ),
                         ],

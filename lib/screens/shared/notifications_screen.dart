@@ -65,6 +65,7 @@ class NotificationsScreen extends StatelessWidget {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
@@ -155,7 +156,7 @@ class NotificationsScreen extends StatelessWidget {
                   duration: const Duration(milliseconds: 300),
                   decoration: BoxDecoration(
                     color:
-                    isRead ? Colors.white : color.withOpacity(0.05),
+                    isRead ? Theme.of(context).cardColor : color.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isRead

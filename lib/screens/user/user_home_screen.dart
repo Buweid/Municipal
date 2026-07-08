@@ -78,8 +78,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             onSubmitTap: () => setState(() => _currentIndex = 1),
             onIssuesTap: () => setState(() => _currentIndex = 2),
           ),
-          const SubmitIssueScreen(),
-          const MyIssuesScreen(),
+          const SubmitIssueScreen(key: PageStorageKey('submit')),
+          const MyIssuesScreen(key: PageStorageKey('myissues')),
         ],
       ),
       bottomNavigationBar: Container(

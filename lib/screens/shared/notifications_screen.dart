@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
+import '../constants/app_theme.dart';
 import '../../providers/settings_provider.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
-  // ── MOVED TO STATIC ──────────────────────────────────────────────
   static const Map<String, IconData> _typeIcons = {
     'issue_approved': Icons.check_circle_outline,
     'issue_rejected': Icons.cancel_outlined,
@@ -52,7 +53,6 @@ class NotificationsScreen extends StatelessWidget {
   String _formatTime(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
@@ -63,17 +63,19 @@ class NotificationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.backgroundColor(context),
       appBar: AppBar(
-        title: const Text('Notifications'),
+        backgroundColor: AppTheme.backgroundColor(context),
+        title: Text(l10n.notifications),
         actions: [
           TextButton(
             onPressed: () => _markAllRead(uid),
-            child: const Text(
-              'Mark all read',
-              style: TextStyle(color: Color(0xFF2E7D32)),
+            child: Text(
+              l10n.markAllRead,
+              style: const TextStyle(color: AppTheme.primary),
             ),
           ),
         ],
@@ -93,23 +95,25 @@ class NotificationsScreen extends StatelessWidget {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          // ← changed from final to var so we can reassign
           var docs = snapshot.data?.docs ?? [];
 
-          // Apply notification preferences filter
           final settings = context.read<SettingsProvider>();
           docs = docs.where((d) {
             final data = d.data() as Map<String, dynamic>;
             final type = data['type'] ?? '';
-
             if (type == 'broadcast' && !settings.notifBroadcast) {
               return false;
             }
             if (type == 'task_assigned' && !settings.notifTasks) {
               return false;
             }
-            if (['issue_approved', 'issue_rejected', 'issue_in_progress',
-              'issue_resolved', 'task_accepted'].contains(type) &&
+            if ([
+              'issue_approved',
+              'issue_rejected',
+              'issue_in_progress',
+              'issue_resolved',
+              'task_accepted'
+            ].contains(type) &&
                 !settings.notifIssueUpdates) {
               return false;
             }
@@ -117,17 +121,21 @@ class NotificationsScreen extends StatelessWidget {
           }).toList();
 
           if (docs.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.notifications_none,
-                      size: 56, color: Colors.black26),
-                  SizedBox(height: 12),
+                      size: 56,
+                      color: AppTheme.textSecondaryColor(context)
+                          .withOpacity(0.4)),
+                  const SizedBox(height: 12),
                   Text(
-                    'No notifications yet',
-                    style:
-                    TextStyle(color: Colors.black45, fontSize: 15),
+                    l10n.noNotifications,
+                    style: TextStyle(
+                      color: AppTheme.textSecondaryColor(context),
+                      fontSize: 15,
+                    ),
                   ),
                 ],
               ),
@@ -147,7 +155,8 @@ class NotificationsScreen extends StatelessWidget {
               final icon =
                   _typeIcons[type] ?? Icons.notifications_outlined;
               final createdAt = data['createdAt'] != null
-                  ? (data['createdAt'] as dynamic).toDate() as DateTime
+                  ? (data['createdAt'] as dynamic).toDate()
+              as DateTime
                   : DateTime.now();
 
               return GestureDetector(
@@ -155,18 +164,21 @@ class NotificationsScreen extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   decoration: BoxDecoration(
-                    color:
-                    isRead ? Theme.of(context).cardColor : color.withOpacity(0.05),
+                    color: isRead
+                        ? AppTheme.cardColor(context)
+                        : color.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isRead
-                          ? const Color(0x0A000000)
+                          ? AppTheme.borderColor(context)
                           : color.withOpacity(0.3),
                       width: isRead ? 1 : 1.5,
                     ),
-                    boxShadow: const [
+                    boxShadow: [
                       BoxShadow(
-                          color: Color(0x0A000000), blurRadius: 6),
+                        color: AppTheme.shadowColor(context),
+                        blurRadius: 6,
+                      ),
                     ],
                   ),
                   child: Padding(
@@ -174,21 +186,20 @@ class NotificationsScreen extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Icon
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: color.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(icon, color: color, size: 20),
+                          child:
+                          Icon(icon, color: color, size: 20),
                         ),
                         const SizedBox(width: 12),
-
-                        // Content
                         Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
@@ -200,6 +211,9 @@ class NotificationsScreen extends StatelessWidget {
                                             ? FontWeight.w500
                                             : FontWeight.w700,
                                         fontSize: 14,
+                                        color: AppTheme
+                                            .textPrimaryColor(
+                                            context),
                                       ),
                                     ),
                                   ),
@@ -217,18 +231,20 @@ class NotificationsScreen extends StatelessWidget {
                               const SizedBox(height: 4),
                               Text(
                                 data['body'] ?? '',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.black54,
+                                  color: AppTheme
+                                      .textSecondaryColor(context),
                                   height: 1.4,
                                 ),
                               ),
                               const SizedBox(height: 6),
                               Text(
                                 _formatTime(createdAt),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.black38,
+                                  color: AppTheme
+                                      .textSecondaryColor(context),
                                 ),
                               ),
                             ],

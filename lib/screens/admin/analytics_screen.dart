@@ -4,6 +4,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../../l10n/app_localizations.dart';
+import '../constants/app_theme.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -16,7 +18,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   bool _isLoading = true;
   bool _isGeneratingPdf = false;
 
-  // Stats
   int _totalIssues = 0;
   int _pending = 0;
   int _approved = 0;
@@ -28,10 +29,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   double _avgRating = 0;
   int _ratedCount = 0;
 
-  // Issue types breakdown
   Map<String, int> _issueTypeCount = {};
-
-  // Monthly issues (last 6 months)
   Map<String, int> _monthlyIssues = {};
 
   @override
@@ -44,23 +42,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Fetch all issues
       final issuesSnap = await FirebaseFirestore.instance
           .collection('issues')
           .get();
-
-      // Fetch all users
       final usersSnap = await FirebaseFirestore.instance
           .collection('users')
           .get();
 
-      int pending = 0, approved = 0, inProgress = 0,
-          resolved = 0, rejected = 0;
+      int pending = 0,
+          approved = 0,
+          inProgress = 0,
+          resolved = 0,
+          rejected = 0;
       int totalRating = 0, ratedCount = 0;
       Map<String, int> typeCount = {};
       Map<String, int> monthlyCount = {};
 
-      // Build last 6 months keys
       final now = DateTime.now();
       for (int i = 5; i >= 0; i--) {
         final month = DateTime(now.year, now.month - i, 1);
@@ -73,25 +70,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         final status = data['status'] ?? 'pending';
         final type = data['issueType'] ?? 'Other';
 
-        // Status counts
         if (status == 'pending') pending++;
         else if (status == 'approved') approved++;
         else if (status == 'in_progress') inProgress++;
         else if (status == 'resolved') resolved++;
         else if (status == 'rejected') rejected++;
 
-        // Issue type counts
         typeCount[type] = (typeCount[type] ?? 0) + 1;
 
-        // Rating
         if (data['rating'] != null) {
-          totalRating += (data['rating'] as int);
+          totalRating += (data['rating'] as num).toInt();
           ratedCount++;
         }
 
-        // Monthly
         if (data['createdAt'] != null) {
-          final date = (data['createdAt'] as dynamic).toDate() as DateTime;
+          final date =
+          (data['createdAt'] as dynamic).toDate() as DateTime;
           final key = '${_monthName(date.month)} ${date.year}';
           if (monthlyCount.containsKey(key)) {
             monthlyCount[key] = (monthlyCount[key] ?? 0) + 1;
@@ -106,6 +100,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         else if (role == 'fo') fos++;
       }
 
+      if (!mounted) return;
       setState(() {
         _totalIssues = issuesSnap.docs.length;
         _pending = pending;
@@ -115,17 +110,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         _rejected = rejected;
         _totalUsers = citizens;
         _totalFOs = fos;
-        _avgRating = ratedCount > 0 ? totalRating / ratedCount : 0;
+        _avgRating =
+        ratedCount > 0 ? totalRating / ratedCount : 0;
         _ratedCount = ratedCount;
         _issueTypeCount = typeCount;
         _monthlyIssues = monthlyCount;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
       if (!mounted) return;
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -138,8 +136,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return months[month - 1];
   }
 
-  // ── GENERATE PDF ─────────────────────────────────────────────────
   Future<void> _generatePDF() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isGeneratingPdf = true);
 
     try {
@@ -158,10 +156,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 borderRadius: pw.BorderRadius.circular(8),
               ),
               child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                crossAxisAlignment:
+                pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'Muscat Municipality',
+                    l10n.appName,
                     style: pw.TextStyle(
                       color: PdfColors.white,
                       fontSize: 22,
@@ -170,8 +169,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   pw.SizedBox(height: 4),
                   pw.Text(
-                    'Issue Reporting Analytics Report',
-                    style: const pw.TextStyle(
+                    l10n.analyticsReports,
+                    style: pw.TextStyle(
                       color: PdfColors.white,
                       fontSize: 13,
                     ),
@@ -179,7 +178,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   pw.SizedBox(height: 4),
                   pw.Text(
                     'Generated: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                    style: const pw.TextStyle(
+                    style: pw.TextStyle(
                       color: PdfColors.white,
                       fontSize: 11,
                     ),
@@ -191,7 +190,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
             // Summary
             pw.Text(
-              'Summary',
+              l10n.overview,
               style: pw.TextStyle(
                 fontSize: 16,
                 fontWeight: pw.FontWeight.bold,
@@ -199,28 +198,36 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
             pw.SizedBox(height: 12),
             pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey300),
+              border: pw.TableBorder.all(
+                  color: PdfColors.grey300),
               children: [
-                _pdfTableRow('Metric', 'Value', isHeader: true),
-                _pdfTableRow('Total Issues', _totalIssues.toString()),
-                _pdfTableRow('Pending', _pending.toString()),
-                _pdfTableRow('Approved', _approved.toString()),
-                _pdfTableRow('In Progress', _inProgress.toString()),
-                _pdfTableRow('Resolved', _resolved.toString()),
-                _pdfTableRow('Rejected', _rejected.toString()),
-                _pdfTableRow('Total Citizens', _totalUsers.toString()),
-                _pdfTableRow('Field Officers', _totalFOs.toString()),
+                _pdfTableRow(l10n.totalIssues,
+                    _totalIssues.toString()),
                 _pdfTableRow(
-                  'Average Rating',
+                    l10n.pending, _pending.toString()),
+                _pdfTableRow(
+                    l10n.approved, _approved.toString()),
+                _pdfTableRow(
+                    l10n.inProgress, _inProgress.toString()),
+                _pdfTableRow(
+                    l10n.resolved, _resolved.toString()),
+                _pdfTableRow(
+                    l10n.rejected, _rejected.toString()),
+                _pdfTableRow(
+                    l10n.citizens, _totalUsers.toString()),
+                _pdfTableRow(l10n.fieldOfficers,
+                    _totalFOs.toString()),
+                _pdfTableRow(
+                  l10n.avgRating,
                   _ratedCount > 0
-                      ? '${_avgRating.toStringAsFixed(1)} / 5.0 ($_ratedCount rated)'
-                      : 'No ratings yet',
+                      ? '${_avgRating.toStringAsFixed(1)} / 5.0 ($_ratedCount ${l10n.totalReviews})'
+                      : 'N/A',
                 ),
               ],
             ),
             pw.SizedBox(height: 24),
 
-            // Resolution rate
+            // Performance
             pw.Text(
               'Performance',
               style: pw.TextStyle(
@@ -230,17 +237,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
             pw.SizedBox(height: 12),
             pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey300),
+              border: pw.TableBorder.all(
+                  color: PdfColors.grey300),
               children: [
-                _pdfTableRow('Metric', 'Value', isHeader: true),
                 _pdfTableRow(
-                  'Resolution Rate',
+                  l10n.resolutionRate,
                   _totalIssues > 0
                       ? '${(_resolved / _totalIssues * 100).toStringAsFixed(1)}%'
                       : '0%',
                 ),
                 _pdfTableRow(
-                  'Rejection Rate',
+                  l10n.rejected,
                   _totalIssues > 0
                       ? '${(_rejected / _totalIssues * 100).toStringAsFixed(1)}%'
                       : '0%',
@@ -249,10 +256,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
             pw.SizedBox(height: 24),
 
-            // Issue types
             if (_issueTypeCount.isNotEmpty) ...[
               pw.Text(
-                'Issues by Type',
+                l10n.issuesByType,
                 style: pw.TextStyle(
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
@@ -260,21 +266,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               pw.SizedBox(height: 12),
               pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey300),
+                border: pw.TableBorder.all(
+                    color: PdfColors.grey300),
                 children: [
-                  _pdfTableRow('Issue Type', 'Count', isHeader: true),
                   ..._issueTypeCount.entries.map(
-                        (e) => _pdfTableRow(e.key, e.value.toString()),
+                        (e) => _pdfTableRow(
+                        e.key, e.value.toString()),
                   ),
                 ],
               ),
               pw.SizedBox(height: 24),
             ],
 
-            // Monthly
             if (_monthlyIssues.isNotEmpty) ...[
               pw.Text(
-                'Monthly Issues (Last 6 Months)',
+                l10n.monthlyIssues,
                 style: pw.TextStyle(
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
@@ -282,11 +288,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               pw.SizedBox(height: 12),
               pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey300),
+                border: pw.TableBorder.all(
+                    color: PdfColors.grey300),
                 children: [
-                  _pdfTableRow('Month', 'Issues', isHeader: true),
                   ..._monthlyIssues.entries.map(
-                        (e) => _pdfTableRow(e.key, e.value.toString()),
+                        (e) => _pdfTableRow(
+                        e.key, e.value.toString()),
                   ),
                 ],
               ),
@@ -297,13 +304,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
       await Printing.layoutPdf(
         onLayout: (format) async => pdf.save(),
-        name: 'municipality_report_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        name:
+        'municipality_report_${DateTime.now().millisecondsSinceEpoch}.pdf',
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating PDF: $e'),
-            backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error generating PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isGeneratingPdf = false);
@@ -314,7 +324,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       {bool isHeader = false}) {
     return pw.TableRow(
       decoration: isHeader
-          ? pw.BoxDecoration(color: PdfColor.fromHex('E8F5E9'))
+          ? pw.BoxDecoration(
+          color: PdfColor.fromHex('E8F5E9'))
           : null,
       children: [
         pw.Padding(
@@ -322,8 +333,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           child: pw.Text(
             col1,
             style: pw.TextStyle(
-              fontWeight:
-              isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+              fontWeight: isHeader
+                  ? pw.FontWeight.bold
+                  : pw.FontWeight.normal,
               fontSize: 11,
             ),
           ),
@@ -333,8 +345,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           child: pw.Text(
             col2,
             style: pw.TextStyle(
-              fontWeight:
-              isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+              fontWeight: isHeader
+                  ? pw.FontWeight.bold
+                  : pw.FontWeight.normal,
               fontSize: 11,
             ),
           ),
@@ -345,10 +358,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.backgroundColor(context),
       appBar: AppBar(
-        title: const Text('Analytics & Reports'),
+        backgroundColor: AppTheme.backgroundColor(context),
+        title: Text(l10n.analyticsTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -361,48 +377,61 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           : RefreshIndicator(
         onRefresh: _loadAnalytics,
         child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics:
+          const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
             children: [
               // ── SUMMARY CARDS ──────────────────────
-              const Text(
-                'Overview',
+              Text(
+                l10n.overview,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
+                  color:
+                  AppTheme.textPrimaryColor(context),
                 ),
               ),
               const SizedBox(height: 12),
 
-              // Row 1
               Row(
                 children: [
-                  _summaryCard('Total Issues', _totalIssues,
-                      Icons.report_outlined, Colors.blueGrey),
+                  _summaryCard(l10n.totalIssues,
+                      _totalIssues,
+                      Icons.report_outlined,
+                      Colors.blueGrey),
                   const SizedBox(width: 12),
-                  _summaryCard('Resolved', _resolved,
-                      Icons.task_alt, const Color(0xFF2E7D32)),
+                  _summaryCard(l10n.resolved,
+                      _resolved, Icons.task_alt,
+                      const Color(0xFF2E7D32)),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _summaryCard('Pending', _pending,
-                      Icons.hourglass_empty, Colors.orange),
+                  _summaryCard(l10n.pending,
+                      _pending,
+                      Icons.hourglass_empty,
+                      Colors.orange),
                   const SizedBox(width: 12),
-                  _summaryCard('Rejected', _rejected,
-                      Icons.cancel_outlined, Colors.red),
+                  _summaryCard(l10n.rejected,
+                      _rejected,
+                      Icons.cancel_outlined,
+                      Colors.red),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _summaryCard('Citizens', _totalUsers,
-                      Icons.people_outline, Colors.teal),
+                  _summaryCard(l10n.citizens,
+                      _totalUsers,
+                      Icons.people_outline,
+                      Colors.teal),
                   const SizedBox(width: 12),
-                  _summaryCard('Field Officers', _totalFOs,
+                  _summaryCard(l10n.fieldOfficers,
+                      _totalFOs,
                       Icons.engineering_outlined,
                       const Color(0xFF6A1B9A)),
                 ],
@@ -414,11 +443,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: const [
+                  color: AppTheme.cardColor(context),
+                  borderRadius:
+                  BorderRadius.circular(14),
+                  boxShadow: [
                     BoxShadow(
-                        color: Color(0x0A000000), blurRadius: 6),
+                      color:
+                      AppTheme.shadowColor(context),
+                      blurRadius: 6,
+                    ),
                   ],
                 ),
                 child: Row(
@@ -427,11 +460,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         color: Colors.amber, size: 36),
                     const SizedBox(width: 12),
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
                       children: [
                         Text(
                           _ratedCount > 0
-                              ? _avgRating.toStringAsFixed(1)
+                              ? _avgRating
+                              .toStringAsFixed(1)
                               : 'N/A',
                           style: const TextStyle(
                             fontSize: 28,
@@ -440,18 +475,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           ),
                         ),
                         Text(
-                          'Average Rating ($_ratedCount reviews)',
-                          style: const TextStyle(
+                          '${l10n.avgRating} ($_ratedCount ${l10n.totalReviews})',
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Colors.black45,
+                            color:
+                            AppTheme.textSecondaryColor(
+                                context),
                           ),
                         ),
                       ],
                     ),
                     const Spacer(),
-                    // Resolution rate
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment:
+                      CrossAxisAlignment.end,
                       children: [
                         Text(
                           _totalIssues > 0
@@ -463,11 +500,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             color: Color(0xFF2E7D32),
                           ),
                         ),
-                        const Text(
-                          'Resolution Rate',
+                        Text(
+                          l10n.resolutionRate,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.black45,
+                            color:
+                            AppTheme.textSecondaryColor(
+                                context),
                           ),
                         ),
                       ],
@@ -477,32 +516,43 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ── PIE CHART — STATUS ─────────────────
-              const Text(
-                'Issues by Status',
+              // ── PIE CHART ─────────────────────────
+              Text(
+                l10n.issuesByStatus,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
+                  color:
+                  AppTheme.textPrimaryColor(context),
                 ),
               ),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: const [
+                  color: AppTheme.cardColor(context),
+                  borderRadius:
+                  BorderRadius.circular(14),
+                  boxShadow: [
                     BoxShadow(
-                        color: Color(0x0A000000), blurRadius: 6),
+                      color:
+                      AppTheme.shadowColor(context),
+                      blurRadius: 6,
+                    ),
                   ],
                 ),
                 child: _totalIssues == 0
-                    ? const SizedBox(
+                    ? SizedBox(
                   height: 180,
                   child: Center(
-                    child: Text('No data yet',
-                        style:
-                        TextStyle(color: Colors.black38)),
+                    child: Text(
+                      'No data yet',
+                      style: TextStyle(
+                        color: AppTheme
+                            .textSecondaryColor(
+                            context),
+                      ),
+                    ),
                   ),
                 )
                     : Column(
@@ -515,47 +565,66 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           centerSpaceRadius: 40,
                           sections: [
                             if (_pending > 0)
-                              _pieSection(_pending,
-                                  Colors.orange, 'Pending'),
+                              _pieSection(
+                                  _pending,
+                                  Colors.orange,
+                                  l10n.pending),
                             if (_approved > 0)
-                              _pieSection(_approved,
-                                  Colors.blue, 'Approved'),
+                              _pieSection(
+                                  _approved,
+                                  Colors.blue,
+                                  l10n.approved),
                             if (_inProgress > 0)
-                              _pieSection(_inProgress,
-                                  Colors.purple, 'In Progress'),
+                              _pieSection(
+                                  _inProgress,
+                                  Colors.purple,
+                                  l10n.inProgress),
                             if (_resolved > 0)
                               _pieSection(
                                   _resolved,
-                                  const Color(0xFF2E7D32),
-                                  'Resolved'),
+                                  const Color(
+                                      0xFF2E7D32),
+                                  l10n.resolved),
                             if (_rejected > 0)
-                              _pieSection(_rejected,
-                                  Colors.red, 'Rejected'),
+                              _pieSection(
+                                  _rejected,
+                                  Colors.red,
+                                  l10n.rejected),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // Legend
                     Wrap(
                       spacing: 12,
                       runSpacing: 6,
                       children: [
                         if (_pending > 0)
                           _legendItem(
-                              Colors.orange, 'Pending', _pending),
+                              Colors.orange,
+                              l10n.pending,
+                              _pending),
                         if (_approved > 0)
                           _legendItem(
-                              Colors.blue, 'Approved', _approved),
+                              Colors.blue,
+                              l10n.approved,
+                              _approved),
                         if (_inProgress > 0)
-                          _legendItem(Colors.purple,
-                              'In Progress', _inProgress),
+                          _legendItem(
+                              Colors.purple,
+                              l10n.inProgress,
+                              _inProgress),
                         if (_resolved > 0)
-                          _legendItem(const Color(0xFF2E7D32),
-                              'Resolved', _resolved),
+                          _legendItem(
+                              const Color(
+                                  0xFF2E7D32),
+                              l10n.resolved,
+                              _resolved),
                         if (_rejected > 0)
                           _legendItem(
-                              Colors.red, 'Rejected', _rejected),
+                              Colors.red,
+                              l10n.rejected,
+                              _rejected),
                       ],
                     ),
                   ],
@@ -563,77 +632,110 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ── BAR CHART — MONTHLY ────────────────
-              const Text(
-                'Monthly Issues (Last 6 Months)',
+              // ── BAR CHART ─────────────────────────
+              Text(
+                l10n.monthlyIssues,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
+                  color:
+                  AppTheme.textPrimaryColor(context),
                 ),
               ),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: const [
+                  color: AppTheme.cardColor(context),
+                  borderRadius:
+                  BorderRadius.circular(14),
+                  boxShadow: [
                     BoxShadow(
-                        color: Color(0x0A000000), blurRadius: 6),
+                      color:
+                      AppTheme.shadowColor(context),
+                      blurRadius: 6,
+                    ),
                   ],
                 ),
                 child: SizedBox(
                   height: 220,
                   child: BarChart(
                     BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      maxY: (_monthlyIssues.values.isEmpty
+                      alignment: BarChartAlignment
+                          .spaceAround,
+                      maxY: (_monthlyIssues.values
+                          .isEmpty
                           ? 1
-                          : _monthlyIssues.values.reduce(
-                              (a, b) => a > b ? a : b))
+                          : _monthlyIssues
+                          .values
+                          .reduce((a, b) =>
+                      a > b ? a : b))
                           .toDouble() +
                           2,
-                      barTouchData: BarTouchData(enabled: true),
+                      barTouchData:
+                      BarTouchData(enabled: true),
                       titlesData: FlTitlesData(
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
                             reservedSize: 28,
-                            getTitlesWidget: (value, meta) => Text(
+                            getTitlesWidget:
+                                (value, meta) => Text(
                               value.toInt().toString(),
-                              style: const TextStyle(fontSize: 10),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppTheme
+                                    .textSecondaryColor(
+                                    context),
+                              ),
                             ),
                           ),
                         ),
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            getTitlesWidget: (value, meta) {
+                            getTitlesWidget:
+                                (value, meta) {
                               final keys =
-                              _monthlyIssues.keys.toList();
-                              final idx = value.toInt();
-                              if (idx < 0 || idx >= keys.length) {
+                              _monthlyIssues.keys
+                                  .toList();
+                              final idx =
+                              value.toInt();
+                              if (idx < 0 ||
+                                  idx >= keys.length) {
                                 return const SizedBox();
                               }
                               return Padding(
-                                padding: const EdgeInsets.only(top: 6),
+                                padding:
+                                const EdgeInsets.only(
+                                    top: 6),
                                 child: Text(
-                                  keys[idx].split(' ')[0],
-                                  style: const TextStyle(fontSize: 10),
+                                  keys[idx]
+                                      .split(' ')[0],
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppTheme
+                                        .textSecondaryColor(
+                                        context),
+                                  ),
                                 ),
                               );
                             },
                           ),
                         ),
                         rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
+                          sideTitles: SideTitles(
+                              showTitles: false),
                         ),
                         topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
+                          sideTitles: SideTitles(
+                              showTitles: false),
                         ),
                       ),
-                      gridData: const FlGridData(show: true),
-                      borderData: FlBorderData(show: false),
+                      gridData:
+                      const FlGridData(show: true),
+                      borderData:
+                      FlBorderData(show: false),
                       barGroups: _monthlyIssues.values
                           .toList()
                           .asMap()
@@ -643,11 +745,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           x: e.key,
                           barRods: [
                             BarChartRodData(
-                              toY: e.value.toDouble(),
-                              color: const Color(0xFF2E7D32),
+                              toY: e.value
+                                  .toDouble(),
+                              color: AppTheme.primary,
                               width: 22,
                               borderRadius:
-                              BorderRadius.circular(4),
+                              BorderRadius
+                                  .circular(4),
                             ),
                           ],
                         ),
@@ -659,68 +763,90 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ── ISSUE TYPES BREAKDOWN ──────────────
+              // ── ISSUE TYPES ───────────────────────
               if (_issueTypeCount.isNotEmpty) ...[
-                const Text(
-                  'Issues by Type',
+                Text(
+                  l10n.issuesByType,
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
+                    color: AppTheme.textPrimaryColor(
+                        context),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: const [
+                    color: AppTheme.cardColor(context),
+                    borderRadius:
+                    BorderRadius.circular(14),
+                    boxShadow: [
                       BoxShadow(
-                          color: Color(0x0A000000), blurRadius: 6),
+                        color: AppTheme.shadowColor(
+                            context),
+                        blurRadius: 6,
+                      ),
                     ],
                   ),
                   child: Column(
-                    children: _issueTypeCount.entries.map((e) {
+                    children: _issueTypeCount.entries
+                        .map((e) {
                       final percent = _totalIssues > 0
                           ? e.value / _totalIssues
                           : 0.0;
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.only(
+                            bottom: 12),
                         child: Column(
                           crossAxisAlignment:
                           CrossAxisAlignment.start,
                           children: [
                             Row(
                               mainAxisAlignment:
-                              MainAxisAlignment.spaceBetween,
+                              MainAxisAlignment
+                                  .spaceBetween,
                               children: [
                                 Text(
                                   e.key,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight:
+                                    FontWeight.w500,
+                                    color: AppTheme
+                                        .textPrimaryColor(
+                                        context),
                                   ),
                                 ),
                                 Text(
                                   '${e.value} (${(percent * 100).toStringAsFixed(0)}%)',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.black45,
+                                    color: AppTheme
+                                        .textSecondaryColor(
+                                        context),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 6),
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
+                              borderRadius:
+                              BorderRadius.circular(
+                                  4),
+                              child:
+                              LinearProgressIndicator(
                                 value: percent,
                                 minHeight: 8,
-                                backgroundColor:
-                                const Color(0xFFE8F5E9),
+                                backgroundColor: AppTheme
+                                    .isDark(context)
+                                    ? const Color(
+                                    0xFF30363D)
+                                    : const Color(
+                                    0xFFE8F5E9),
                                 valueColor:
                                 const AlwaysStoppedAnimation(
-                                  Color(0xFF2E7D32),
+                                  AppTheme.primary,
                                 ),
                               ),
                             ),
@@ -733,7 +859,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 const SizedBox(height: 24),
               ],
 
-              // ── GENERATE PDF BUTTON ────────────────
+              // ── GENERATE PDF ──────────────────────
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -742,22 +868,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(
+                    child:
+                    CircularProgressIndicator(
                       color: Colors.white,
                       strokeWidth: 2.5,
                     ),
                   )
-                      : const Icon(Icons.picture_as_pdf),
+                      : const Icon(
+                      Icons.picture_as_pdf),
                   label: Text(
                     _isGeneratingPdf
-                        ? 'Generating...'
-                        : 'Generate PDF Report',
-                    style: const TextStyle(fontSize: 16),
+                        ? l10n.generating
+                        : l10n.generatePDF,
+                    style:
+                    const TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.shade700,
+                    backgroundColor:
+                    Colors.red.shade700,
                   ),
-                  onPressed: _isGeneratingPdf ? null : _generatePDF,
+                  onPressed: _isGeneratingPdf
+                      ? null
+                      : _generatePDF,
                 ),
               ),
               const SizedBox(height: 24),
@@ -768,16 +900,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _summaryCard(
-      String label, int value, IconData icon, Color color) {
+  Widget _summaryCard(String label, int value,
+      IconData icon, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
+          color: AppTheme.cardColor(context),
           borderRadius: BorderRadius.circular(14),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0A000000), blurRadius: 6),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.shadowColor(context),
+              blurRadius: 6,
+            ),
           ],
         ),
         child: Row(
@@ -805,9 +940,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: Colors.black45,
+                      color:
+                      AppTheme.textSecondaryColor(context),
                     ),
                   ),
                 ],
@@ -819,9 +955,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  PieChartSectionData _pieSection(int value, Color color, String title) {
-    final percent =
-    _totalIssues > 0 ? (value / _totalIssues * 100) : 0.0;
+  PieChartSectionData _pieSection(
+      int value, Color color, String title) {
+    final percent = _totalIssues > 0
+        ? (value / _totalIssues * 100)
+        : 0.0;
     return PieChartSectionData(
       value: value.toDouble(),
       color: color,
@@ -850,7 +988,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         const SizedBox(width: 4),
         Text(
           '$label ($count)',
-          style: const TextStyle(fontSize: 11, color: Colors.black54),
+          style: TextStyle(
+            fontSize: 11,
+            color: AppTheme.textSecondaryColor(context),
+          ),
         ),
       ],
     );

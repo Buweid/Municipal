@@ -23,10 +23,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       body: IndexedStack(
         index: _currentIndex,
         children: const [
-          AdminDashboardScreen(),
-          IssueManagementScreen(),
-          ManageUsersScreen(),
-          AnalyticsScreen(),
+          AdminDashboardScreen(key: PageStorageKey('dashboard')),
+          IssueManagementScreen(key: PageStorageKey('issues')),
+          ManageUsersScreen(key: PageStorageKey('users')),
+          AnalyticsScreen(key: PageStorageKey('analytics')),
         ],
       ),
       bottomNavigationBar: Container(

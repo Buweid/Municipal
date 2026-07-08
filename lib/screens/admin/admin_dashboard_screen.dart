@@ -30,7 +30,7 @@ class AdminDashboardScreen extends StatelessWidget {
         resolved = 0, rejected = 0, citizens = 0, officers = 0;
 
     for (final doc in issues.docs) {
-      final status = doc['status'] ?? 'pending';
+      final status = doc.data()['status'] ?? 'pending';
       if (status == 'pending') pending++;
       else if (status == 'approved') approved++;
       else if (status == 'in_progress') inProgress++;
@@ -39,7 +39,7 @@ class AdminDashboardScreen extends StatelessWidget {
     }
 
     for (final doc in users.docs) {
-      final role = doc['role'] ?? 'user';
+      final role = doc.data()['role'] ?? 'user';
       if (role == 'user') citizens++;
       else if (role == 'fo') officers++;
     }

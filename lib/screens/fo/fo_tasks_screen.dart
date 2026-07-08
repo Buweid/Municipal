@@ -2,10 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import '../services/cloudinary_service.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import '../../l10n/app_localizations.dart';
+import '../constants/app_theme.dart';
 import '../services/notification_service.dart';
 import '../../widgets/notification_bell.dart';
 import '../services/audit_service.dart';
@@ -21,37 +23,39 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
   String _selectedFilter = 'all';
   final String _currentFOId = FirebaseAuth.instance.currentUser!.uid;
 
-  // ── TASK STATUS CONFIG ───────────────────────────────────────────
-  final Map<String, Map<String, dynamic>> _taskStatusConfig = {
-    'assigned': {
-      'label': 'Assigned',
-      'color': Colors.orange,
-      'icon': Icons.assignment,
-    },
-    'accepted': {
-      'label': 'Accepted',
-      'color': Colors.blue,
-      'icon': Icons.assignment_turned_in,
-    },
-    'rejected': {
-      'label': 'Rejected',
-      'color': Colors.red,
-      'icon': Icons.assignment_late,
-    },
-    'in_progress': {
-      'label': 'In Progress',
-      'color': Colors.purple,
-      'icon': Icons.engineering,
-    },
-    'completed': {
-      'label': 'Completed',
-      'color': Color(0xFF2E7D32),
-      'icon': Icons.task_alt,
-    },
-  };
+  Map<String, Map<String, dynamic>> _taskStatusConfig(
+      AppLocalizations l10n) =>
+      {
+        'assigned': {
+          'label': l10n.myTasks,
+          'color': Colors.orange,
+          'icon': Icons.assignment,
+        },
+        'accepted': {
+          'label': l10n.accept,
+          'color': Colors.blue,
+          'icon': Icons.assignment_turned_in,
+        },
+        'rejected': {
+          'label': l10n.rejected,
+          'color': Colors.red,
+          'icon': Icons.assignment_late,
+        },
+        'in_progress': {
+          'label': l10n.inProgress,
+          'color': Colors.purple,
+          'icon': Icons.engineering,
+        },
+        'completed': {
+          'label': l10n.doneTasks,
+          'color': const Color(0xFF2E7D32),
+          'icon': Icons.task_alt,
+        },
+      };
 
-  Widget _taskStatusBadge(String status) {
-    final config = _taskStatusConfig[status] ?? _taskStatusConfig['assigned']!;
+  Widget _taskStatusBadge(String status, AppLocalizations l10n) {
+    final config = _taskStatusConfig(l10n)[status] ??
+        _taskStatusConfig(l10n)['assigned']!;
     final color = config['color'] as Color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -80,20 +84,28 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
 
   // ── ACCEPT TASK ──────────────────────────────────────────────────
   Future<void> _acceptTask(String issueId) async {
+    final l10n = AppLocalizations.of(context)!;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Accept Task'),
-        content: const Text('Confirm you are accepting this task?'),
+        backgroundColor: AppTheme.cardColor(context),
+        title: Text(l10n.acceptTask,
+            style:
+            TextStyle(color: AppTheme.textPrimaryColor(context))),
+        content: Text(l10n.confirmAcceptTask,
+            style:
+            TextStyle(color: AppTheme.textSecondaryColor(context))),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            style:
+            ElevatedButton.styleFrom(backgroundColor: Colors.blue),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Accept'),
+            child: Text(l10n.accept),
           ),
         ],
       ),
@@ -118,7 +130,8 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
       await NotificationService.send(
         uid: data['uid'],
         title: 'Task Accepted 👷',
-        body: 'A field officer has accepted your issue "${data['title']}"',
+        body:
+        'A field officer has accepted your issue "${data['title']}"',
         type: 'task_accepted',
         issueId: issueId,
       );
@@ -129,69 +142,98 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Task accepted ✅'),
+        SnackBar(
+          content: Text(l10n.taskCompleted),
           backgroundColor: Colors.blue,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
 
   // ── REJECT TASK ──────────────────────────────────────────────────
   Future<void> _rejectTask(String issueId) async {
+    final l10n = AppLocalizations.of(context)!;
     final reasonController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    String? rejectionReason;
 
-    final confirm = await showDialog<bool>(
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reject Task'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: reasonController,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Reason for rejection',
-              hintText: 'Explain why you cannot take this task...',
-              alignLabelWithHint: true,
-            ),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Reason is required';
-              if (v.trim().length < 10) return 'Please provide more detail';
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.of(ctx).pop(true);
-              }
-            },
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    ).then((result) {
-      final reason = reasonController.text.trim();
-      reasonController.dispose();
-      return result == true ? reason : null;
-    });
+      builder: (ctx) {
+        bool isSaving = false;
 
-    if (confirm == null) return;
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) => PopScope(
+            canPop: !isSaving,
+            child: AlertDialog(
+              backgroundColor: AppTheme.cardColor(context),
+              title: Text(
+                l10n.rejectTask,
+                style: TextStyle(
+                    color: AppTheme.textPrimaryColor(context)),
+              ),
+              content: Form(
+                key: formKey,
+                child: TextFormField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: l10n.reasonRejection,
+                    hintText: l10n.explainRejection,
+                    alignLabelWithHint: true,
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Reason is required';
+                    }
+                    if (v.trim().length < 10) {
+                      return 'Please provide more detail';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(ctx).pop(),
+                  child: Text(l10n.cancel),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red),
+                  onPressed: isSaving
+                      ? null
+                      : () {
+                    if (formKey.currentState!.validate()) {
+                      rejectionReason =
+                          reasonController.text.trim();
+                      Navigator.of(ctx).pop();
+                    }
+                  },
+                  child: Text(l10n.reject),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // Dispose only after dialog fully closed
+    reasonController.dispose();
+
+    // User cancelled
+    if (rejectionReason == null) return;
 
     try {
       await FirebaseFirestore.instance
@@ -199,32 +241,42 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
           .doc(issueId)
           .update({
         'taskStatus': 'rejected',
-        'rejectionReason': confirm,
+        'rejectionReason': rejectionReason,
         'rejectedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
       await AuditService.log(
         action: 'TASK_REJECTED',
         description: 'Field officer rejected task',
-        metadata: {'issueId': issueId, 'reason': confirm},
+        metadata: {
+          'issueId': issueId,
+          'reason': rejectionReason,
+        },
       );
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Task rejected'),
+        SnackBar(
+          content: Text(l10n.taskRejected),
           backgroundColor: Colors.red,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
 
   // ── UPDATE PROGRESS ──────────────────────────────────────────────
-  Future<void> _updateProgress(String issueId, String currentTaskStatus) async {
+  Future<void> _updateProgress(
+      String issueId, String currentTaskStatus) async {
+    final l10n = AppLocalizations.of(context)!;
+
     final Map<String, List<String>> transitions = {
       'accepted': ['in_progress'],
       'in_progress': ['completed'],
@@ -233,21 +285,29 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
     final nextStatuses = transitions[currentTaskStatus];
     if (nextStatuses == null) return;
 
+    final nextLabel =
+    _taskStatusConfig(l10n)[nextStatuses.first]!['label'] as String;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Update Progress'),
+        backgroundColor: AppTheme.cardColor(context),
+        title: Text(l10n.updateProgress,
+            style:
+            TextStyle(color: AppTheme.textPrimaryColor(context))),
         content: Text(
-          'Move task to "${_taskStatusConfig[nextStatuses.first]!['label']}"?',
+          '${l10n.moveTaskTo} "$nextLabel"?',
+          style:
+          TextStyle(color: AppTheme.textSecondaryColor(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Confirm'),
+            child: Text(l10n.confirm),
           ),
         ],
       ),
@@ -279,31 +339,35 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
         type: isCompleted ? 'issue_resolved' : 'issue_in_progress',
         issueId: issueId,
       );
-
       await AuditService.log(
         action: 'PROGRESS_UPDATED',
-        description: 'Field officer updated task to "${nextStatuses.first}"',
-        metadata: {'issueId': issueId, 'newStatus': nextStatuses.first},
+        description:
+        'Field officer updated task to "${nextStatuses.first}"',
+        metadata: {
+          'issueId': issueId,
+          'newStatus': nextStatuses.first
+        },
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Progress updated to ${_taskStatusConfig[nextStatuses.first]!['label']} ✅',
-          ),
+          content: Text('$nextLabel ✅'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
 
   // ── UPLOAD EVIDENCE ──────────────────────────────────────────────
   Future<void> _uploadEvidence(String issueId) async {
+    final l10n = AppLocalizations.of(context)!;
     final picker = ImagePicker();
     final picked = await picker.pickImage(
       source: ImageSource.camera,
@@ -316,12 +380,9 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
     final file = File(picked.path);
 
     try {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('completion_evidence/$issueId.jpg');
+      final url = await CloudinaryService.uploadImage(file);
 
-      await ref.putFile(file);
-      final url = await ref.getDownloadURL();
+      if (url == null) throw Exception('Upload failed');
 
       await FirebaseFirestore.instance
           .collection('issues')
@@ -331,28 +392,33 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
         'evidenceUploadedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
       await AuditService.log(
         action: 'EVIDENCE_UPLOADED',
         description: 'Field officer uploaded completion evidence',
         metadata: {'issueId': issueId},
       );
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Evidence uploaded ✅'),
+        SnackBar(
+          content: Text('${l10n.uploadEvidence} ✅'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
 
   // ── TASK DETAIL BOTTOM SHEET ─────────────────────────────────────
   void _showTaskDetail(Map<String, dynamic> data, String issueId) {
+    final l10n = AppLocalizations.of(context)!;
     final taskStatus = data['taskStatus'] ?? 'assigned';
 
     showModalBottomSheet(
@@ -364,9 +430,10 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
         maxChildSize: 0.95,
         minChildSize: 0.4,
         builder: (ctx, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor(context),
+            borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: ListView(
             controller: scrollController,
@@ -378,7 +445,7 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.black26,
+                    color: AppTheme.borderColor(context),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -391,34 +458,48 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                   Expanded(
                     child: Text(
                       data['title'] ?? '',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimaryColor(context),
                       ),
                     ),
                   ),
-                  _taskStatusBadge(taskStatus),
+                  _taskStatusBadge(taskStatus, l10n),
                 ],
               ),
               const SizedBox(height: 12),
 
-              _infoRow(Icons.category_outlined, 'Type', data['issueType'] ?? ''),
+              _infoRow(Icons.category_outlined, l10n.issueType,
+                  data['issueType'] ?? ''),
               const SizedBox(height: 6),
-              _infoRow(Icons.person_outline, 'Reported by', data['userName'] ?? ''),
+              _infoRow(Icons.person_outline, l10n.reportedBy,
+                  data['userName'] ?? ''),
               const Divider(height: 24),
 
               // Description
-              const Text('Description',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(l10n.description,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimaryColor(context),
+                  )),
               const SizedBox(height: 6),
-              Text(data['description'] ?? '',
-                  style: const TextStyle(color: Colors.black54, height: 1.5)),
+              Text(
+                data['description'] ?? '',
+                style: TextStyle(
+                  color: AppTheme.textSecondaryColor(context),
+                  height: 1.5,
+                ),
+              ),
               const SizedBox(height: 16),
 
               // Issue image
               if (data['imageUrl'] != null) ...[
-                const Text('Issue Photo',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                Text(l10n.issuePhoto,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimaryColor(context),
+                    )),
                 const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -433,8 +514,11 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
 
               // Evidence image
               if (data['evidenceUrl'] != null) ...[
-                const Text('Completion Evidence',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                Text(l10n.completionEvidence,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimaryColor(context),
+                    )),
                 const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -448,9 +532,13 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
               ],
 
               // Location map
-              if (data['latitude'] != null && data['longitude'] != null) ...[
-                const Text('Location',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+              if (data['latitude'] != null &&
+                  data['longitude'] != null) ...[
+                Text(l10n.locationLabel,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimaryColor(context),
+                    )),
                 const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -459,8 +547,8 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                     child: FlutterMap(
                       options: MapOptions(
                         initialCenter: LatLng(
-                          data['latitude'],
-                          data['longitude'],
+                          (data['latitude'] as num).toDouble(),
+                          (data['longitude'] as num).toDouble(),
                         ),
                         initialZoom: 15,
                         interactionOptions: const InteractionOptions(
@@ -471,14 +559,15 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                         TileLayer(
                           urlTemplate:
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.muscat.municipality',
+                          userAgentPackageName:
+                          'com.muscat.municipality',
                         ),
                         MarkerLayer(
                           markers: [
                             Marker(
                               point: LatLng(
-                                data['latitude'],
-                                data['longitude'],
+                                (data['latitude'] as num).toDouble(),
+                                (data['longitude'] as num).toDouble(),
                               ),
                               child: const Icon(
                                 Icons.location_pin,
@@ -498,8 +587,6 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
               const Divider(),
               const SizedBox(height: 12),
 
-              // ── ACTION BUTTONS ───────────────────────────
-
               // Assigned → Accept or Reject
               if (taskStatus == 'assigned') ...[
                 Row(
@@ -507,11 +594,13 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.close, color: Colors.red),
-                        label: const Text('Reject',
-                            style: TextStyle(color: Colors.red)),
+                        label: Text(l10n.reject,
+                            style:
+                            const TextStyle(color: Colors.red)),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12),
                         ),
                         onPressed: () {
                           Navigator.pop(ctx);
@@ -523,10 +612,11 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.check),
-                        label: const Text('Accept'),
+                        label: Text(l10n.accept),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12),
                         ),
                         onPressed: () {
                           Navigator.pop(ctx);
@@ -538,15 +628,17 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                 ),
               ],
 
-              // Accepted or In Progress → Update Progress + Upload Evidence
-              if (taskStatus == 'accepted' || taskStatus == 'in_progress') ...[
+              // Accepted or In Progress
+              if (taskStatus == 'accepted' ||
+                  taskStatus == 'in_progress') ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.update),
-                    label: const Text('Update Progress'),
+                    label: Text(l10n.updateProgress),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding:
+                      const EdgeInsets.symmetric(vertical: 12),
                     ),
                     onPressed: () {
                       Navigator.pop(ctx);
@@ -561,11 +653,12 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                     icon: const Icon(Icons.camera_alt_outlined),
                     label: Text(
                       data['evidenceUrl'] != null
-                          ? 'Replace Evidence Photo'
-                          : 'Upload Evidence Photo',
+                          ? l10n.replaceEvidence
+                          : l10n.uploadEvidence,
                     ),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding:
+                      const EdgeInsets.symmetric(vertical: 12),
                     ),
                     onPressed: () {
                       Navigator.pop(ctx);
@@ -581,21 +674,21 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2E7D32).withOpacity(0.08),
+                    color: AppTheme.primary.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: const Color(0xFF2E7D32).withOpacity(0.3),
-                    ),
+                        color: AppTheme.primary.withOpacity(0.3)),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.task_alt, color: Color(0xFF2E7D32), size: 18),
-                      SizedBox(width: 8),
+                      const Icon(Icons.task_alt,
+                          color: AppTheme.primary, size: 18),
+                      const SizedBox(width: 8),
                       Text(
-                        'Task completed ✅',
-                        style: TextStyle(
-                          color: Color(0xFF2E7D32),
+                        l10n.taskCompleted,
+                        style: const TextStyle(
+                          color: AppTheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -612,19 +705,20 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                   decoration: BoxDecoration(
                     color: Colors.red.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    border: Border.all(
+                        color: Colors.red.withOpacity(0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.cancel_outlined,
+                          const Icon(Icons.cancel_outlined,
                               color: Colors.red, size: 18),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
-                            'Task Rejected',
-                            style: TextStyle(
+                            l10n.taskRejected,
+                            style: const TextStyle(
                               color: Colors.red,
                               fontWeight: FontWeight.w600,
                             ),
@@ -634,7 +728,7 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                       if (data['rejectionReason'] != null) ...[
                         const SizedBox(height: 6),
                         Text(
-                          'Reason: ${data['rejectionReason']}',
+                          '${l10n.reasonRejection}: ${data['rejectionReason']}',
                           style: const TextStyle(
                             color: Colors.red,
                             fontSize: 13,
@@ -653,30 +747,45 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
   }
 
   Widget _infoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 15, color: Colors.black45),
-        const SizedBox(width: 6),
-        Text('$label: ',
-            style: const TextStyle(fontSize: 13, color: Colors.black45)),
-        Expanded(
-          child: Text(value,
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w500)),
-        ),
-      ],
-    );
+    return Builder(builder: (context) {
+      return Row(
+        children: [
+          Icon(icon,
+              size: 15,
+              color: AppTheme.textSecondaryColor(context)),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSecondaryColor(context),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textPrimaryColor(context),
+              ),
+            ),
+          ),
+        ],
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.backgroundColor(context),
       appBar: AppBar(
-        title: const Text('My Tasks'),
-        actions: [
-          const NotificationBell(),
-        ],
+        backgroundColor: AppTheme.backgroundColor(context),
+        title: Text(l10n.myTasks),
+        actions: const [NotificationBell()],
       ),
       body: Column(
         children: [
@@ -700,15 +809,15 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                       child: FilterChip(
                         label: Text(
                           filter == 'all'
-                              ? 'All'
-                              : _taskStatusConfig[filter]!['label'] as String,
+                              ? l10n.all
+                              : _taskStatusConfig(l10n)[filter]![
+                          'label'] as String,
                         ),
                         selected: _selectedFilter == filter,
                         onSelected: (_) =>
                             setState(() => _selectedFilter = filter),
-                        selectedColor:
-                        const Color(0xFF2E7D32).withOpacity(0.15),
-                        checkmarkColor: const Color(0xFF2E7D32),
+                        selectedColor: AppTheme.primary.withOpacity(0.15),
+                        checkmarkColor: AppTheme.primary,
                       ),
                     ),
                 ],
@@ -730,12 +839,12 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return Center(
+                      child: Text('Error: ${snapshot.error}'));
                 }
 
                 var docs = snapshot.data?.docs ?? [];
 
-                // Apply filter
                 if (_selectedFilter != 'all') {
                   docs = docs.where((d) {
                     final data = d.data() as Map<String, dynamic>;
@@ -744,16 +853,21 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                 }
 
                 if (docs.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.assignment_outlined,
-                            size: 48, color: Colors.black26),
-                        SizedBox(height: 8),
+                            size: 48,
+                            color: AppTheme.textSecondaryColor(context)
+                                .withOpacity(0.4)),
+                        const SizedBox(height: 8),
                         Text(
-                          'No tasks assigned to you yet',
-                          style: TextStyle(color: Colors.black45),
+                          l10n.noTasksAssigned,
+                          style: TextStyle(
+                            color:
+                            AppTheme.textSecondaryColor(context),
+                          ),
                         ),
                       ],
                     ),
@@ -763,24 +877,28 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, __) =>
+                  const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final doc = docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
-                    final taskStatus = data['taskStatus'] ?? 'assigned';
-                    final config = _taskStatusConfig[taskStatus] ??
-                        _taskStatusConfig['assigned']!;
+                    final data =
+                    doc.data() as Map<String, dynamic>;
+                    final taskStatus =
+                        data['taskStatus'] ?? 'assigned';
+                    final config =
+                        _taskStatusConfig(l10n)[taskStatus] ??
+                            _taskStatusConfig(l10n)['assigned']!;
                     final color = config['color'] as Color;
 
                     return GestureDetector(
                       onTap: () => _showTaskDetail(data, doc.id),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
+                          color: AppTheme.cardColor(context),
                           borderRadius: BorderRadius.circular(14),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x0A000000),
+                              color: AppTheme.shadowColor(context),
                               blurRadius: 6,
                             ),
                           ],
@@ -791,20 +909,24 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                         child: Padding(
                           padding: const EdgeInsets.all(14),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
                                   Expanded(
                                     child: Text(
                                       data['title'] ?? '',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 15,
+                                        color:
+                                        AppTheme.textPrimaryColor(
+                                            context),
                                       ),
                                     ),
                                   ),
-                                  _taskStatusBadge(taskStatus),
+                                  _taskStatusBadge(taskStatus, l10n),
                                 ],
                               ),
                               const SizedBox(height: 6),
@@ -812,33 +934,45 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                                 data['description'] ?? '',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.black54,
+                                style: TextStyle(
+                                  color:
+                                  AppTheme.textSecondaryColor(
+                                      context),
                                   fontSize: 13,
                                 ),
                               ),
                               const SizedBox(height: 10),
                               Row(
                                 children: [
-                                  const Icon(Icons.category_outlined,
-                                      size: 13, color: Colors.black38),
+                                  Icon(Icons.category_outlined,
+                                      size: 13,
+                                      color:
+                                      AppTheme.textSecondaryColor(
+                                          context)),
                                   const SizedBox(width: 4),
                                   Text(
                                     data['issueType'] ?? '',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.black38,
+                                      color:
+                                      AppTheme.textSecondaryColor(
+                                          context),
                                     ),
                                   ),
                                   const Spacer(),
-                                  const Icon(Icons.person_outline,
-                                      size: 13, color: Colors.black38),
+                                  Icon(Icons.person_outline,
+                                      size: 13,
+                                      color:
+                                      AppTheme.textSecondaryColor(
+                                          context)),
                                   const SizedBox(width: 4),
                                   Text(
                                     'By ${data['userName'] ?? ''}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.black38,
+                                      color:
+                                      AppTheme.textSecondaryColor(
+                                          context),
                                     ),
                                   ),
                                 ],

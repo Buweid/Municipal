@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map/flutter_map.dart' show PolygonLayer;
 import 'package:latlong2/latlong.dart';
+import '../../l10n/app_localizations.dart';
+import '../constants/app_theme.dart';
 
 class IssuesMapScreen extends StatefulWidget {
   const IssuesMapScreen({super.key});
 
   @override
-  State<IssuesMapScreen> createState() => _IssuesMapScreenState();
+  State<IssuesMapScreen> createState() =>
+      _IssuesMapScreenState();
 }
 
 class _IssuesMapScreenState extends State<IssuesMapScreen>
@@ -38,6 +40,7 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _mapController.dispose();
     super.dispose();
   }
 
@@ -48,15 +51,18 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
           .collection('issues')
           .get();
 
+      if (!mounted) return;
       setState(() {
         _issues = snap.docs
             .map((d) => {'id': d.id, ...d.data()})
             .where((d) =>
-        d['latitude'] != null && d['longitude'] != null)
+        d['latitude'] != null &&
+            d['longitude'] != null)
             .toList();
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
@@ -64,19 +70,22 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
   List<Map<String, dynamic>> get _filteredIssues {
     if (_selectedFilter == 'all') return _issues;
     return _issues
-        .where((i) => (i['status'] ?? '') == _selectedFilter)
+        .where(
+            (i) => (i['status'] ?? '') == _selectedFilter)
         .toList();
   }
 
-  // ── ISSUE MARKER POPUP ───────────────────────────────────────────
-  void _showIssuePopup(Map<String, dynamic> data) {
+  void _showIssuePopup(
+      Map<String, dynamic> data, AppLocalizations l10n) {
     final status = data['status'] ?? 'pending';
     final color = _statusColors[status] ?? Colors.grey;
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: AppTheme.cardColor(context),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius:
+        BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(20),
@@ -89,9 +98,11 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                 Expanded(
                   child: Text(
                     data['title'] ?? '',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
+                      color:
+                      AppTheme.textPrimaryColor(context),
                     ),
                   ),
                 ),
@@ -101,8 +112,8 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border:
-                    Border.all(color: color.withOpacity(0.5)),
+                    border: Border.all(
+                        color: color.withOpacity(0.5)),
                   ),
                   child: Text(
                     status.replaceAll('_', ' ').toUpperCase(),
@@ -120,24 +131,40 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
               data['description'] ?? '',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.black54),
+              style: TextStyle(
+                color: AppTheme.textSecondaryColor(context),
+              ),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(Icons.person_outline,
-                    size: 14, color: Colors.black45),
+                Icon(Icons.person_outline,
+                    size: 14,
+                    color:
+                    AppTheme.textSecondaryColor(context)),
                 const SizedBox(width: 4),
-                Text(data['userName'] ?? '',
-                    style: const TextStyle(
-                        fontSize: 12, color: Colors.black45)),
+                Text(
+                  data['userName'] ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color:
+                    AppTheme.textSecondaryColor(context),
+                  ),
+                ),
                 const SizedBox(width: 16),
-                const Icon(Icons.category_outlined,
-                    size: 14, color: Colors.black45),
+                Icon(Icons.category_outlined,
+                    size: 14,
+                    color:
+                    AppTheme.textSecondaryColor(context)),
                 const SizedBox(width: 4),
-                Text(data['issueType'] ?? '',
-                    style: const TextStyle(
-                        fontSize: 12, color: Colors.black45)),
+                Text(
+                  data['issueType'] ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color:
+                    AppTheme.textSecondaryColor(context),
+                  ),
+                ),
               ],
             ),
             if (data['imageUrl'] != null) ...[
@@ -159,12 +186,10 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
     );
   }
 
-  // ── HEAT MAP GRID ────────────────────────────────────────────────
-  // We divide Muscat into a grid and count issues per cell
   List<Map<String, dynamic>> _buildHeatCells() {
     if (_issues.isEmpty) return [];
 
-    const gridSize = 0.02; // ~2km cells
+    const gridSize = 0.02;
     Map<String, int> cellCount = {};
     Map<String, LatLng> cellCenter = {};
 
@@ -172,7 +197,6 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
       final lat = (issue['latitude'] as num).toDouble();
       final lng = (issue['longitude'] as num).toDouble();
 
-      // Snap to grid
       final gridLat = (lat / gridSize).floor() * gridSize;
       final gridLng = (lng / gridSize).floor() * gridSize;
       final key = '$gridLat,$gridLng';
@@ -184,8 +208,10 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
       );
     }
 
-    final maxCount =
-    cellCount.values.isEmpty ? 1 : cellCount.values.reduce((a, b) => a > b ? a : b);
+    final maxCount = cellCount.values.isEmpty
+        ? 1
+        : cellCount.values
+        .reduce((a, b) => a > b ? a : b);
 
     return cellCount.entries.map((e) {
       final intensity = e.value / maxCount;
@@ -199,26 +225,42 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
   }
 
   Color _heatColor(double intensity) {
-    if (intensity < 0.25) return Colors.green.withOpacity(0.4);
-    if (intensity < 0.5) return Colors.yellow.withOpacity(0.5);
-    if (intensity < 0.75) return Colors.orange.withOpacity(0.6);
+    if (intensity < 0.25) {
+      return Colors.green.withOpacity(0.4);
+    }
+    if (intensity < 0.5) {
+      return Colors.yellow.withOpacity(0.5);
+    }
+    if (intensity < 0.75) {
+      return Colors.orange.withOpacity(0.6);
+    }
     return Colors.red.withOpacity(0.7);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.backgroundColor(context),
       appBar: AppBar(
-        title: const Text('Issues Map'),
+        backgroundColor: AppTheme.backgroundColor(context),
+        title: Text(l10n.issuesMapTitle),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: const Color(0xFF2E7D32),
-          labelColor: const Color(0xFF2E7D32),
-          unselectedLabelColor: Colors.black45,
-          tabs: const [
-            Tab(icon: Icon(Icons.map), text: 'Issue Map'),
-            Tab(icon: Icon(Icons.layers), text: 'Heat Map'),
+          indicatorColor: AppTheme.primary,
+          labelColor: AppTheme.primary,
+          unselectedLabelColor:
+          AppTheme.textSecondaryColor(context),
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.map),
+              text: l10n.issueMap,
+            ),
+            Tab(
+              icon: const Icon(Icons.layers),
+              text: l10n.heatMap,
+            ),
           ],
         ),
         actions: [
@@ -238,7 +280,8 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
             children: [
               // Filter chips
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                padding: const EdgeInsets.fromLTRB(
+                    12, 8, 12, 4),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -252,20 +295,29 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                         'rejected',
                       ])
                         Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding:
+                          const EdgeInsets.only(
+                              right: 8),
                           child: FilterChip(
                             label: Text(
                               filter == 'all'
-                                  ? 'All (${_issues.length})'
+                                  ? '${l10n.all} (${_issues.length})'
                                   : '${filter.replaceAll('_', ' ')} (${_issues.where((i) => i['status'] == filter).length})',
-                              style: const TextStyle(fontSize: 11),
+                              style: const TextStyle(
+                                  fontSize: 11),
                             ),
-                            selected: _selectedFilter == filter,
-                            onSelected: (_) => setState(
-                                    () => _selectedFilter = filter),
-                            selectedColor: const Color(0xFF2E7D32)
+                            selected:
+                            _selectedFilter ==
+                                filter,
+                            onSelected: (_) =>
+                                setState(() =>
+                                _selectedFilter =
+                                    filter),
+                            selectedColor: AppTheme
+                                .primary
                                 .withOpacity(0.15),
-                            checkmarkColor: const Color(0xFF2E7D32),
+                            checkmarkColor:
+                            AppTheme.primary,
                           ),
                         ),
                     ],
@@ -278,7 +330,8 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                 child: FlutterMap(
                   mapController: _mapController,
                   options: const MapOptions(
-                    initialCenter: LatLng(23.5880, 58.3829),
+                    initialCenter:
+                    LatLng(23.5880, 58.3829),
                     initialZoom: 11,
                   ),
                   children: [
@@ -289,30 +342,37 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                       'com.muscat.municipality',
                     ),
                     MarkerLayer(
-                      markers: _filteredIssues.map((issue) {
+                      markers:
+                      _filteredIssues.map((issue) {
                         final status =
                             issue['status'] ?? 'pending';
                         final color =
-                            _statusColors[status] ?? Colors.grey;
+                            _statusColors[status] ??
+                                Colors.grey;
                         return Marker(
                           point: LatLng(
-                            (issue['latitude'] as num).toDouble(),
-                            (issue['longitude'] as num).toDouble(),
+                            (issue['latitude'] as num)
+                                .toDouble(),
+                            (issue['longitude'] as num)
+                                .toDouble(),
                           ),
                           width: 36,
                           height: 36,
                           child: GestureDetector(
-                            onTap: () => _showIssuePopup(issue),
+                            onTap: () => _showIssuePopup(
+                                issue, l10n),
                             child: Container(
                               decoration: BoxDecoration(
                                 color: color,
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                    color: Colors.white, width: 2),
+                                    color: Colors.white,
+                                    width: 2),
                                 boxShadow: [
                                   BoxShadow(
-                                    color:
-                                    color.withOpacity(0.4),
+                                    color: color
+                                        .withOpacity(
+                                        0.4),
                                     blurRadius: 6,
                                   ),
                                 ],
@@ -333,12 +393,14 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
 
               // Legend
               Container(
-                color: Theme.of(context).cardColor,
+                color: AppTheme.cardColor(context),
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 8),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: _statusColors.entries.map((e) {
+                  mainAxisAlignment:
+                  MainAxisAlignment.spaceAround,
+                  children: _statusColors.entries
+                      .map((e) {
                     return Row(
                       children: [
                         Container(
@@ -352,7 +414,12 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                         const SizedBox(width: 4),
                         Text(
                           e.key.replaceAll('_', ' '),
-                          style: const TextStyle(fontSize: 10),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppTheme
+                                .textSecondaryColor(
+                                context),
+                          ),
                         ),
                       ],
                     );
@@ -367,7 +434,8 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
             children: [
               FlutterMap(
                 options: const MapOptions(
-                  initialCenter: LatLng(23.5880, 58.3829),
+                  initialCenter:
+                  LatLng(23.5880, 58.3829),
                   initialZoom: 11,
                 ),
                 children: [
@@ -377,10 +445,11 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                     userAgentPackageName:
                     'com.muscat.municipality',
                   ),
-                  // Heat cells as colored circles
                   MarkerLayer(
-                    markers: _buildHeatCells().map((cell) {
-                      final center = cell['center'] as LatLng;
+                    markers:
+                    _buildHeatCells().map((cell) {
+                      final center =
+                      cell['center'] as LatLng;
                       final intensity =
                       cell['intensity'] as double;
                       final count = cell['count'] as int;
@@ -391,7 +460,8 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                         height: 60,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: _heatColor(intensity),
+                            color:
+                            _heatColor(intensity),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -399,7 +469,8 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                               count.toString(),
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontWeight: FontWeight.bold,
+                                fontWeight:
+                                FontWeight.bold,
                                 fontSize: 12,
                               ),
                             ),
@@ -418,32 +489,42 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
+                    color: AppTheme.cardColor(context),
+                    borderRadius:
+                    BorderRadius.circular(12),
+                    boxShadow: [
                       BoxShadow(
-                          color: Color(0x22000000),
-                          blurRadius: 8),
+                        color:
+                        AppTheme.shadowColor(context),
+                        blurRadius: 8,
+                      ),
                     ],
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Issue Density',
+                      Text(
+                        l10n.issueDensity,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 12,
+                          color: AppTheme.textPrimaryColor(
+                              context),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      _heatLegendRow(Colors.green, 'Low'),
+                      _heatLegendRow(
+                          Colors.green, l10n.low),
                       const SizedBox(height: 4),
-                      _heatLegendRow(Colors.yellow, 'Medium'),
+                      _heatLegendRow(
+                          Colors.yellow, l10n.medium),
                       const SizedBox(height: 4),
-                      _heatLegendRow(Colors.orange, 'High'),
+                      _heatLegendRow(
+                          Colors.orange, l10n.high),
                       const SizedBox(height: 4),
-                      _heatLegendRow(Colors.red, 'Critical'),
+                      _heatLegendRow(
+                          Colors.red, l10n.critical),
                     ],
                   ),
                 ),
@@ -457,19 +538,25 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: const [
+                    color: AppTheme.cardColor(context),
+                    borderRadius:
+                    BorderRadius.circular(10),
+                    boxShadow: [
                       BoxShadow(
-                          color: Color(0x22000000),
-                          blurRadius: 6),
+                        color:
+                        AppTheme.shadowColor(context),
+                        blurRadius: 6,
+                      ),
                     ],
                   ),
                   child: Text(
-                    '${_issues.length} total issues',
-                    style: const TextStyle(
+                    '${_issues.length} ${l10n.totalIssuesMap}',
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
+                      color:
+                      AppTheme.textPrimaryColor(
+                          context),
                     ),
                   ),
                 ),
@@ -493,7 +580,13 @@ class _IssuesMapScreenState extends State<IssuesMapScreen>
           ),
         ),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 11)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: AppTheme.textSecondaryColor(context),
+          ),
+        ),
       ],
     );
   }

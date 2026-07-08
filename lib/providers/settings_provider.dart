@@ -14,6 +14,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _notifBroadcast = true;
   bool _notifTasks = true;
 
+  // ── GETTERS ──────────────────────────────────────────────────────
   bool get isDarkMode => _isDarkMode;
   String get language => _language;
   bool get isArabic => _language == 'ar';
@@ -24,44 +25,66 @@ class SettingsProvider extends ChangeNotifier {
       _isDarkMode ? ThemeMode.dark : ThemeMode.light;
   Locale get locale => Locale(_language);
 
+  // ── LOAD FROM PREFS ───────────────────────────────────────────────
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _isDarkMode = prefs.getBool(_keyDarkMode) ?? false;
     _language = prefs.getString(_keyLanguage) ?? 'en';
-    _notifIssueUpdates = prefs.getBool(_keyNotifIssueUpdates) ?? true;
-    _notifBroadcast = prefs.getBool(_keyNotifBroadcast) ?? true;
+    _notifIssueUpdates =
+        prefs.getBool(_keyNotifIssueUpdates) ?? true;
+    _notifBroadcast =
+        prefs.getBool(_keyNotifBroadcast) ?? true;
     _notifTasks = prefs.getBool(_keyNotifTasks) ?? true;
     notifyListeners();
   }
 
+  // ── PERSIST LANGUAGE ─────────────────────────────────────────────
+  // Called by RestartWidget before rebuild
+  Future<void> persistLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLanguage, _language);
+  }
+
+  // ── SET LANGUAGE ─────────────────────────────────────────────────
+  // Updates memory only — RestartWidget handles rebuild
+  Future<void> setLanguage(String lang) async {
+    if (_language == lang) return;
+    _language = lang;
+  }
+
+  // ── SET LANGUAGE IMMEDIATE ────────────────────────────────────────
+  // Used from welcome screen — notifies immediately
+  void setLanguageImmediate(String lang) {
+    if (_language == lang) return;
+    _language = lang;
+    SharedPreferences.getInstance().then(
+          (prefs) => prefs.setString(_keyLanguage, lang),
+    );
+    notifyListeners();
+  }
+
+  // ── DARK MODE ─────────────────────────────────────────────────────
   Future<void> toggleDarkMode() async {
     _isDarkMode = !_isDarkMode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyDarkMode, _isDarkMode);
-    notifyListeners(); // ← dark mode is safe to notify immediately
+    notifyListeners();
   }
 
-  // ← Language saves to prefs but does NOT notify
-  // App restart is required — call RestartWidget.restartApp(context) after this
-  Future<void> setLanguage(String lang) async {
-    if (_language == lang) return;
-    _language = lang;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyLanguage, lang);
-    // No notifyListeners() here — restart handles it
-  }
-
+  // ── NOTIFICATIONS ─────────────────────────────────────────────────
   Future<void> toggleNotifIssueUpdates() async {
     _notifIssueUpdates = !_notifIssueUpdates;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyNotifIssueUpdates, _notifIssueUpdates);
+    await prefs.setBool(
+        _keyNotifIssueUpdates, _notifIssueUpdates);
     notifyListeners();
   }
 
   Future<void> toggleNotifBroadcast() async {
     _notifBroadcast = !_notifBroadcast;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyNotifBroadcast, _notifBroadcast);
+    await prefs.setBool(
+        _keyNotifBroadcast, _notifBroadcast);
     notifyListeners();
   }
 

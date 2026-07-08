@@ -2,24 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '/screens/constants/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/settings_provider.dart';
+import '../constants/app_theme.dart';
 import '../shared/settings_screen.dart';
 
 class UpdateProfileScreen extends StatefulWidget {
   const UpdateProfileScreen({super.key});
 
   @override
-  State<UpdateProfileScreen> createState() => _UpdateProfileScreenState();
+  State<UpdateProfileScreen> createState() =>
+      _UpdateProfileScreenState();
 }
 
-class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
+class _UpdateProfileScreenState
+    extends State<UpdateProfileScreen> {
+  late final GlobalKey<FormState> _formKey;
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _nationalIdController = TextEditingController();
 
-  // Password change controllers
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -38,6 +40,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _formKey = GlobalKey<FormState>();
     _loadProfile();
   }
 
@@ -64,7 +67,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       if (data != null) {
         _nameController.text = data['name'] ?? '';
         _phoneController.text = data['phone'] ?? '';
-        _nationalIdController.text = data['nationalId'] ?? '';
+        _nationalIdController.text =
+            data['nationalId'] ?? '';
         _email = data['email'] ?? '';
         _role = data['role'] ?? 'user';
       }
@@ -82,6 +86,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
+    final l10n = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
 
@@ -99,8 +104,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile updated successfully ✅'),
+        SnackBar(
+          content: Text(l10n.userUpdated),
           backgroundColor: AppTheme.primary,
         ),
       );
@@ -118,7 +123,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   }
 
   Future<void> _changePassword() async {
-    if (_newPasswordController.text != _confirmPasswordController.text) {
+    if (_newPasswordController.text !=
+        _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('New passwords do not match'),
@@ -143,19 +149,15 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser!;
-
-      // Re-authenticate first
       final credential = EmailAuthProvider.credential(
         email: user.email!,
         password: _currentPasswordController.text.trim(),
       );
       await user.reauthenticateWithCredential(credential);
-
-      // Change password
-      await user.updatePassword(_newPasswordController.text.trim());
+      await user.updatePassword(
+          _newPasswordController.text.trim());
 
       if (!mounted) return;
-
       _currentPasswordController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
@@ -186,8 +188,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     }
   }
 
-  // ── ROLE BADGE ───────────────────────────────────────────────────
-  Widget _roleBadge() {
+  Widget _roleBadge(AppLocalizations l10n) {
     Color color;
     String label;
     IconData icon;
@@ -195,26 +196,29 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     switch (_role) {
       case 'admin':
         color = AppTheme.info;
-        label = 'Administrator';
+        label = l10n.admin;
         icon = Icons.admin_panel_settings_outlined;
         break;
       case 'fo':
         color = AppTheme.purple;
-        label = 'Field Officer';
+        label = l10n.fieldOfficer;
         icon = Icons.engineering_outlined;
         break;
       default:
         color = AppTheme.primary;
-        label = 'Citizen';
+        label = l10n.citizen;
         icon = Icons.person_outline;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+          horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-        border: Border.all(color: color.withOpacity(0.3)),
+        borderRadius:
+        BorderRadius.circular(AppTheme.radiusSm),
+        border:
+        Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -236,22 +240,21 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsProvider>();
-    final isArabic = settings.isArabic;
-    final isDark = settings.isDarkMode;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.backgroundColor(context),
       appBar: AppBar(
-        title: Text(isArabic ? 'الملف الشخصي' : 'Profile'),
+        backgroundColor: AppTheme.backgroundColor(context),
+        title: Text(l10n.updateProfile),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => const SettingsScreen(),
-              ),
+                  builder: (_) => const SettingsScreen()),
             ),
           ),
         ],
@@ -263,28 +266,32 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
             children: [
               // ── PROFILE HEADER ─────────────────────
               Center(
                 child: Column(
                   children: [
-                    // Avatar
                     Container(
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.12),
+                        color: AppTheme.primary
+                            .withOpacity(0.12),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: AppTheme.primary.withOpacity(0.3),
+                          color: AppTheme.primary
+                              .withOpacity(0.3),
                           width: 2,
                         ),
                       ),
                       child: Center(
                         child: Text(
-                          _nameController.text.isNotEmpty
-                              ? _nameController.text[0].toUpperCase()
+                          _nameController.text
+                              .isNotEmpty
+                              ? _nameController.text[0]
+                              .toUpperCase()
                               : '?',
                           style: const TextStyle(
                             fontSize: 32,
@@ -295,39 +302,41 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
-                    // Name
                     Text(
                       _nameController.text,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimaryColor(
+                            context),
                       ),
                     ),
                     const SizedBox(height: 4),
-
-                    // Email
                     Text(
                       _email,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppTheme.textSecondary,
+                        color:
+                        AppTheme.textSecondaryColor(
+                            context),
                       ),
                     ),
                     const SizedBox(height: 10),
-
-                    // Role badge
-                    _roleBadge(),
+                    _roleBadge(l10n),
                   ],
                 ),
               ),
               const SizedBox(height: AppTheme.spaceLg),
 
               // ── PERSONAL INFO ──────────────────────
-              _SectionTitle(
-                title: isArabic
-                    ? 'المعلومات الشخصية'
-                    : 'Personal Information',
+              Text(
+                l10n.personalInformation,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color:
+                  AppTheme.textPrimaryColor(context),
+                ),
               ),
               const SizedBox(height: AppTheme.spaceMd),
 
@@ -335,32 +344,33 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
               TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
-                  labelText: isArabic ? 'الاسم الكامل' : 'Full Name',
+                  labelText: l10n.fullName,
                   prefixIcon:
                   const Icon(Icons.person_outline),
                   hintText: 'e.g. Ahmed Ali Al-Rashdi',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return isArabic
+                    return settings.isArabic
                         ? 'الاسم مطلوب'
                         : 'Name is required';
                   }
-                  if (!RegExp(r"^[a-zA-Z\u0600-\u06FF\s\-']+$")
+                  if (!RegExp(
+                      r"^[a-zA-Z\u0600-\u06FF\s\-']+$")
                       .hasMatch(v.trim())) {
-                    return isArabic
+                    return settings.isArabic
                         ? 'أحرف فقط'
                         : 'Letters only';
                   }
                   final words =
                   v.trim().split(RegExp(r'\s+'));
                   if (words.length < 2) {
-                    return isArabic
+                    return settings.isArabic
                         ? 'أدخل اسمين على الأقل'
                         : 'At least 2 names';
                   }
                   if (words.length > 5) {
-                    return isArabic
+                    return settings.isArabic
                         ? 'الحد الأقصى 5 كلمات'
                         : 'Max 5 words';
                   }
@@ -374,22 +384,21 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  labelText: isArabic
-                      ? 'رقم الهاتف'
-                      : 'Phone Number',
+                  labelText: l10n.phoneNumber,
                   prefixIcon:
                   const Icon(Icons.phone_outlined),
-                  hintText: '+968  7XXXXXXX or 9XXXXXXX',
+                  hintText:
+                  '+968  7XXXXXXX or 9XXXXXXX',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return isArabic
+                    return settings.isArabic
                         ? 'رقم الهاتف مطلوب'
                         : 'Phone is required';
                   }
                   if (!RegExp(r'^[79]\d{7}$')
                       .hasMatch(v.trim())) {
-                    return isArabic
+                    return settings.isArabic
                         ? 'يجب أن يبدأ بـ 7 أو 9 و8 أرقام'
                         : 'Must start with 7 or 9, 8 digits';
                   }
@@ -403,22 +412,20 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 controller: _nationalIdController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: isArabic
-                      ? 'الرقم الوطني'
-                      : 'National ID',
+                  labelText: l10n.nationalId,
                   prefixIcon:
                   const Icon(Icons.badge_outlined),
                   hintText: '8 - 12 digits',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return isArabic
+                    return settings.isArabic
                         ? 'الرقم الوطني مطلوب'
                         : 'National ID is required';
                   }
                   if (!RegExp(r'^\d{8,12}$')
                       .hasMatch(v.trim())) {
-                    return isArabic
+                    return settings.isArabic
                         ? 'يجب أن يكون 8 إلى 12 رقماً'
                         : 'Must be 8 to 12 digits';
                   }
@@ -436,7 +443,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                       ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(
+                    child:
+                    CircularProgressIndicator(
                       color: Colors.white,
                       strokeWidth: 2,
                     ),
@@ -444,12 +452,11 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                       : const Icon(Icons.save_outlined),
                   label: Text(
                     _isSaving
-                        ? (isArabic ? 'جاري الحفظ...' : 'Saving...')
-                        : (isArabic
-                        ? 'حفظ التغييرات'
-                        : 'Save Changes'),
+                        ? l10n.saving
+                        : l10n.saveChanges,
                   ),
-                  onPressed: _isSaving ? null : _saveProfile,
+                  onPressed:
+                  _isSaving ? null : _saveProfile,
                 ),
               ),
               const SizedBox(height: AppTheme.spaceLg),
@@ -459,12 +466,17 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
               const SizedBox(height: AppTheme.spaceMd),
 
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
                 children: [
-                  _SectionTitle(
-                    title: isArabic
-                        ? 'تغيير كلمة المرور'
-                        : 'Change Password',
+                  Text(
+                    l10n.changePassword,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimaryColor(
+                          context),
+                    ),
                   ),
                   TextButton(
                     onPressed: () => setState(
@@ -473,8 +485,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                     ),
                     child: Text(
                       _showPasswordSection
-                          ? (isArabic ? 'إلغاء' : 'Cancel')
-                          : (isArabic ? 'تغيير' : 'Change'),
+                          ? l10n.cancel
+                          : l10n.change,
                       style: const TextStyle(
                         color: AppTheme.primary,
                         fontWeight: FontWeight.w600,
@@ -492,20 +504,17 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   controller: _currentPasswordController,
                   obscureText: _obscureCurrent,
                   decoration: InputDecoration(
-                    labelText: isArabic
-                        ? 'كلمة المرور الحالية'
-                        : 'Current Password',
+                    labelText: l10n.currentPassword,
                     prefixIcon:
                     const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureCurrent
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                      onPressed: () => setState(
-                            () => _obscureCurrent = !_obscureCurrent,
-                      ),
+                      icon: Icon(_obscureCurrent
+                          ? Icons.visibility_outlined
+                          : Icons
+                          .visibility_off_outlined),
+                      onPressed: () => setState(() =>
+                      _obscureCurrent =
+                      !_obscureCurrent),
                     ),
                   ),
                 ),
@@ -516,21 +525,18 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   controller: _newPasswordController,
                   obscureText: _obscureNew,
                   decoration: InputDecoration(
-                    labelText: isArabic
-                        ? 'كلمة المرور الجديدة'
-                        : 'New Password',
+                    labelText: l10n.newPassword,
                     prefixIcon:
                     const Icon(Icons.lock_outline),
                     hintText: '6 - 15 characters',
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureNew
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
+                      icon: Icon(_obscureNew
+                          ? Icons.visibility_outlined
+                          : Icons
+                          .visibility_off_outlined),
                       onPressed: () => setState(
-                            () => _obscureNew = !_obscureNew,
-                      ),
+                              () => _obscureNew =
+                          !_obscureNew),
                     ),
                   ),
                 ),
@@ -541,20 +547,17 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirm,
                   decoration: InputDecoration(
-                    labelText: isArabic
-                        ? 'تأكيد كلمة المرور'
-                        : 'Confirm New Password',
+                    labelText: l10n.confirmNewPassword,
                     prefixIcon:
                     const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirm
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
+                      icon: Icon(_obscureConfirm
+                          ? Icons.visibility_outlined
+                          : Icons
+                          .visibility_off_outlined),
                       onPressed: () => setState(
-                            () => _obscureConfirm = !_obscureConfirm,
-                      ),
+                              () => _obscureConfirm =
+                          !_obscureConfirm),
                     ),
                   ),
                 ),
@@ -569,7 +572,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                         ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(
+                      child:
+                      CircularProgressIndicator(
                         color: Colors.white,
                         strokeWidth: 2,
                       ),
@@ -577,12 +581,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                         : const Icon(Icons.lock_reset),
                     label: Text(
                       _isChangingPassword
-                          ? (isArabic
-                          ? 'جاري التغيير...'
-                          : 'Changing...')
-                          : (isArabic
-                          ? 'تغيير كلمة المرور'
-                          : 'Change Password'),
+                          ? l10n.changing
+                          : l10n.changePassword,
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.info,
@@ -593,28 +593,44 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   ),
                 ),
               ],
+
+              const SizedBox(height: AppTheme.spaceLg),
+
+              // ── SIGN OUT ───────────────────────────
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.logout,
+                      color: AppTheme.error),
+                  label: Text(
+                    l10n.signOut,
+                    style: const TextStyle(
+                        color: AppTheme.error),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(
+                        color: AppTheme.error),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                      BorderRadius.circular(
+                          AppTheme.radiusMd),
+                    ),
+                  ),
+                  onPressed: () async {
+                    await FirebaseAuth.instance
+                        .signOut();
+                    if (context.mounted) {
+                      Navigator.of(context)
+                          .pushReplacementNamed('/');
+                    }
+                  },
+                ),
+              ),
               const SizedBox(height: AppTheme.spaceXl),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ── SHARED WIDGET ─────────────────────────────────────────────────────
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  const _SectionTitle({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-        color: AppTheme.textPrimary,
       ),
     );
   }

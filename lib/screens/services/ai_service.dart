@@ -4,8 +4,7 @@ import 'package:http/http.dart' as http;
 class AIService {
   static const String _apiUrl =
       'https://api.groq.com/openai/v1/chat/completions';
-  
-  static const String _apiKey = ''; // ← paste here
+  static const String _apiKey = String.fromEnvironment('GROQ_API_KEY');
   static const String _model = 'llama-3.1-8b-instant';
 
   static const String _systemPrompt = '''You are a helpful assistant 
@@ -55,8 +54,12 @@ If asked about unrelated topics, politely redirect to municipality services.''';
     if (data == null) {
       return 'Connection error. Please check your internet and try again.';
     }
-    return data['choices'][0]['message']['content'] as String? ??
-        'Sorry, I could not process your request.';
+    try {
+      return data['choices'][0]['message']['content'] as String? ??
+          'Sorry, I could not process your request.';
+    } catch (_) {
+      return 'Sorry, I could not process your request.';
+    }
   }
 
   // ── AUTOCOMPLETE ─────────────────────────────────────────────────
@@ -115,7 +118,11 @@ If asked about unrelated topics, politely redirect to municipality services.''';
 
     if (data == null) return roughDescription;
 
-    return data['choices'][0]['message']['content'] as String? ??
-        roughDescription;
+    try {
+      return data['choices'][0]['message']['content'] as String? ??
+          roughDescription;
+    } catch (_) {
+      return roughDescription;
+    }
   }
 }

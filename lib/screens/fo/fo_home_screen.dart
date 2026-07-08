@@ -40,11 +40,10 @@ class _FOHomeScreenState extends State<FOHomeScreen> {
         .where('assignedTo', isEqualTo: uid)
         .get();
 
-    int assigned = 0, accepted = 0, inProgress = 0, completed = 0;
+    int assigned = 0, inProgress = 0, completed = 0;
     for (final d in tasksSnap.docs) {
       final s = d['taskStatus'] ?? 'assigned';
       if (s == 'assigned') assigned++;
-      else if (s == 'accepted') accepted++;
       else if (s == 'in_progress') inProgress++;
       else if (s == 'completed') completed++;
     }
@@ -77,7 +76,7 @@ class _FOHomeScreenState extends State<FOHomeScreen> {
             onRefresh: _loadData,
             onTasksTap: () => setState(() => _currentIndex = 1),
           ),
-          const FOTasksScreen(),
+          const FOTasksScreen(key: PageStorageKey('fotasks')),
         ],
       ),
       bottomNavigationBar: Container(
@@ -308,9 +307,8 @@ class _FOHomeTab extends StatelessWidget {
                     .collection('issues')
                     .where('assignedTo', isEqualTo: uid)
                     .where('taskStatus', isEqualTo: 'assigned')
-                    .orderBy('assignedAt', descending: true)
-                    .limit(3)
-                    .snapshots(),
+                    .snapshots(), // ← remove orderBy completely
+
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());

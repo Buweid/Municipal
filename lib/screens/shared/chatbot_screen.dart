@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/settings_provider.dart';
 import '../constants/app_theme.dart';
 import '../services/ai_service.dart';
@@ -20,14 +21,27 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   void initState() {
     super.initState();
-    _messages.add({
-      'role': 'assistant',
-      'content':
-      'Hello! 👋 I\'m the Muscat Municipality assistant. I can help you with:\n\n'
-          '• Submitting issue reports\n'
-          '• Tracking your complaints\n'
-          '• Understanding our services\n\n'
-          'How can I help you today?',
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final isArabic =
+            context.read<SettingsProvider>().isArabic; // ← define it here
+        setState(() {
+          _messages.add({
+            'role': 'assistant',
+            'content': isArabic
+                ? 'مرحباً! 👋 أنا مساعد بلدية مسقط. يمكنني مساعدتك في:\n\n'
+                '• تقديم البلاغات\n'
+                '• متابعة شكاواك\n'
+                '• فهم خدماتنا\n\n'
+                'كيف يمكنني مساعدتك اليوم؟'
+                : 'Hello! 👋 I\'m the Muscat Municipality assistant. I can help you with:\n\n'
+                '• Submitting issue reports\n'
+                '• Tracking your complaints\n'
+                '• Understanding our services\n\n'
+                'How can I help you today?',
+          });
+        });
+      }
     });
   }
 
@@ -51,8 +65,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _scrollToBottom();
 
     final apiMessages = _messages
-        .where((m) => m['role'] == 'user' || m['role'] == 'assistant')
-        .map((m) => {'role': m['role']!, 'content': m['content']!})
+        .where((m) =>
+    m['role'] == 'user' || m['role'] == 'assistant')
+        .map((m) =>
+    {'role': m['role']!, 'content': m['content']!})
         .toList();
 
     final response = await AIService.chat(messages: apiMessages);
@@ -68,6 +84,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
+      if (!mounted) return;
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -78,21 +95,22 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     });
   }
 
-  final List<String> _quickPrompts = [
-    'How do I submit a report?',
-    'How can I track my issue?',
-    'What types of issues can I report?',
-    'How long does it take to resolve?',
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isArabic = context.watch<SettingsProvider>().isArabic;
 
+    final List<String> quickPrompts = [
+      l10n.howSubmitReport,
+      l10n.howTrackIssue,
+      l10n.whatTypesIssues,
+      l10n.howLongResolve,
+    ];
+
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor(context), // ← fixed
+      backgroundColor: AppTheme.backgroundColor(context),
       appBar: AppBar(
-        backgroundColor: AppTheme.backgroundColor(context), // ← fixed
+        backgroundColor: AppTheme.backgroundColor(context),
         title: Row(
           children: [
             Container(
@@ -113,15 +131,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isArabic ? 'المساعد الذكي' : 'AI Assistant',
+                  l10n.aiAssistantTitle,
                   style: TextStyle(
                     fontSize: 15,
-                    color: AppTheme.textPrimaryColor(context), // ← fixed
+                    color: AppTheme.textPrimaryColor(context),
                   ),
                 ),
-                const Text(
-                  'Online',
-                  style: TextStyle(
+                Text(
+                  l10n.online,
+                  style: const TextStyle(
                     fontSize: 11,
                     color: AppTheme.primary,
                     fontWeight: FontWeight.w500,
@@ -135,7 +153,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           IconButton(
             icon: Icon(
               Icons.refresh_outlined,
-              color: AppTheme.textSecondaryColor(context), // ← fixed
+              color: AppTheme.textSecondaryColor(context),
             ),
             onPressed: () {
               setState(() {
@@ -158,7 +176,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(AppTheme.spaceMd),
-              itemCount: _messages.length + (_isTyping ? 1 : 0),
+              itemCount:
+              _messages.length + (_isTyping ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index == _messages.length) {
                   return _TypingIndicator();
@@ -176,16 +195,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           // ── QUICK PROMPTS ─────────────────────────────
           if (_messages.length <= 1)
             Container(
-              color: AppTheme.backgroundColor(context), // ← fixed
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              color: AppTheme.backgroundColor(context),
+              padding:
+              const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isArabic ? 'اقتراحات سريعة:' : 'Quick questions:',
+                    l10n.quickQuestions,
                     style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.textSecondaryColor(context), // ← fixed
+                      color:
+                      AppTheme.textSecondaryColor(context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -193,7 +214,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 6,
-                    children: _quickPrompts.map((prompt) {
+                    children: quickPrompts.map((prompt) {
                       return GestureDetector(
                         onTap: () {
                           _messageController.text = prompt;
@@ -205,16 +226,19 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.08),
+                            color: AppTheme.primary
+                                .withOpacity(0.08),
                             borderRadius:
-                            BorderRadius.circular(AppTheme.radiusSm),
+                            BorderRadius.circular(
+                                AppTheme.radiusSm),
                             border: Border.all(
-                              color: AppTheme.primary.withOpacity(0.2),
+                              color: AppTheme.primary
+                                  .withOpacity(0.2),
                             ),
                           ),
-                          child: const Text(
-                            '',
-                            style: TextStyle(
+                          child: Text(
+                            prompt,
+                            style: const TextStyle(
                               fontSize: 12,
                               color: AppTheme.primary,
                               fontWeight: FontWeight.w500,
@@ -231,11 +255,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
           // ── INPUT BAR ─────────────────────────────────
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding:
+            const EdgeInsets.fromLTRB(16, 8, 16, 16),
             decoration: BoxDecoration(
-              color: AppTheme.cardColor(context), // ← fixed
+              color: AppTheme.cardColor(context),
               border: Border(
-                top: BorderSide(color: AppTheme.borderColor(context)), // ← fixed
+                top: BorderSide(
+                    color: AppTheme.borderColor(context)),
               ),
             ),
             child: SafeArea(
@@ -248,39 +274,44 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       maxLines: 3,
                       minLines: 1,
                       style: TextStyle(
-                        color: AppTheme.textPrimaryColor(context), // ← fixed
+                        color:
+                        AppTheme.textPrimaryColor(context),
                       ),
                       decoration: InputDecoration(
-                        hintText: isArabic
-                            ? 'اكتب رسالتك...'
-                            : 'Type your message...',
+                        hintText: l10n.typeMessage,
                         hintStyle: TextStyle(
-                          color: AppTheme.textSecondaryColor(context), // ← fixed
+                          color: AppTheme.textSecondaryColor(
+                              context),
                         ),
                         border: OutlineInputBorder(
-                          borderRadius:
-                          BorderRadius.circular(AppTheme.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                              AppTheme.radiusLg),
                           borderSide: BorderSide(
-                              color: AppTheme.borderColor(context)), // ← fixed
+                              color:
+                              AppTheme.borderColor(context)),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius:
-                          BorderRadius.circular(AppTheme.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                              AppTheme.radiusLg),
                           borderSide: BorderSide(
-                              color: AppTheme.borderColor(context)), // ← fixed
+                              color:
+                              AppTheme.borderColor(context)),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                          BorderRadius.circular(AppTheme.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                              AppTheme.radiusLg),
                           borderSide: const BorderSide(
-                              color: AppTheme.primary, width: 1.5),
+                              color: AppTheme.primary,
+                              width: 1.5),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
+                        contentPadding:
+                        const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 10,
                         ),
                         filled: true,
-                        fillColor: AppTheme.backgroundColor(context), // ← fixed
+                        fillColor:
+                        AppTheme.backgroundColor(context),
                       ),
                       onSubmitted: (_) => _sendMessage(),
                     ),
@@ -289,12 +320,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   GestureDetector(
                     onTap: _sendMessage,
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
+                      duration:
+                      const Duration(milliseconds: 200),
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
                         color: _isTyping
-                            ? AppTheme.textSecondaryColor(context) // ← fixed
+                            ? AppTheme.textSecondaryColor(
+                            context)
                             : AppTheme.primary,
                         shape: BoxShape.circle,
                       ),
@@ -330,8 +363,9 @@ class _MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment:
-        isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser) ...[
@@ -359,22 +393,24 @@ class _MessageBubble extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isUser
                     ? AppTheme.primary
-                    : AppTheme.cardColor(context), // ← fixed
+                    : AppTheme.cardColor(context),
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(AppTheme.radiusMd),
-                  topRight: const Radius.circular(AppTheme.radiusMd),
-                  bottomLeft:
-                  Radius.circular(isUser ? AppTheme.radiusMd : 4),
-                  bottomRight:
-                  Radius.circular(isUser ? 4 : AppTheme.radiusMd),
+                  topLeft: const Radius.circular(
+                      AppTheme.radiusMd),
+                  topRight: const Radius.circular(
+                      AppTheme.radiusMd),
+                  bottomLeft: Radius.circular(
+                      isUser ? AppTheme.radiusMd : 4),
+                  bottomRight: Radius.circular(
+                      isUser ? 4 : AppTheme.radiusMd),
                 ),
                 border: isUser
                     ? null
                     : Border.all(
-                    color: AppTheme.borderColor(context)), // ← fixed
+                    color: AppTheme.borderColor(context)),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.shadowColor(context), // ← fixed
+                    color: AppTheme.shadowColor(context),
                     blurRadius: 6,
                   ),
                 ],
@@ -385,7 +421,7 @@ class _MessageBubble extends StatelessWidget {
                   fontSize: 14,
                   color: isUser
                       ? Colors.white
-                      : AppTheme.textPrimaryColor(context), // ← fixed
+                      : AppTheme.textPrimaryColor(context),
                   height: 1.5,
                 ),
               ),
@@ -401,7 +437,8 @@ class _MessageBubble extends StatelessWidget {
 // ── TYPING INDICATOR ──────────────────────────────────────────────────
 class _TypingIndicator extends StatefulWidget {
   @override
-  State<_TypingIndicator> createState() => _TypingIndicatorState();
+  State<_TypingIndicator> createState() =>
+      _TypingIndicatorState();
 }
 
 class _TypingIndicatorState extends State<_TypingIndicator>
@@ -416,7 +453,8 @@ class _TypingIndicatorState extends State<_TypingIndicator>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     )..repeat();
-    _animation = Tween<double>(begin: 0, end: 1).animate(_controller);
+    _animation =
+        Tween<double>(begin: 0, end: 1).animate(_controller);
   }
 
   @override
@@ -446,13 +484,14 @@ class _TypingIndicatorState extends State<_TypingIndicator>
           ),
           const SizedBox(width: 8),
           Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: AppTheme.cardColor(context), // ← fixed
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              color: AppTheme.cardColor(context),
+              borderRadius:
+              BorderRadius.circular(AppTheme.radiusMd),
               border: Border.all(
-                  color: AppTheme.borderColor(context)), // ← fixed
+                  color: AppTheme.borderColor(context)),
             ),
             child: AnimatedBuilder(
               animation: _animation,
@@ -462,19 +501,22 @@ class _TypingIndicatorState extends State<_TypingIndicator>
                   children: List.generate(3, (i) {
                     final delay = i * 0.33;
                     final opacity =
-                    (((_animation.value + delay) % 1.0) > 0.5)
+                    (((_animation.value + delay) % 1.0) >
+                        0.5)
                         ? 1.0
                         : 0.3;
                     return Padding(
-                      padding:
-                      const EdgeInsets.symmetric(horizontal: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 2),
                       child: Opacity(
                         opacity: opacity,
                         child: Container(
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(
-                            color: AppTheme.textSecondaryColor(context), // ← fixed
+                            color:
+                            AppTheme.textSecondaryColor(
+                                context),
                             shape: BoxShape.circle,
                           ),
                         ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../l10n/app_localizations.dart';
+import '../constants/app_theme.dart';
 import '../services/notification_service.dart';
 import '../services/audit_service.dart';
 
@@ -9,44 +11,46 @@ class IssueManagementScreen extends StatefulWidget {
   const IssueManagementScreen({super.key});
 
   @override
-  State<IssueManagementScreen> createState() => _IssueManagementScreenState();
+  State<IssueManagementScreen> createState() =>
+      _IssueManagementScreenState();
 }
 
 class _IssueManagementScreenState extends State<IssueManagementScreen> {
   String _selectedFilter = 'all';
 
-  // ── STATUS CONFIG ────────────────────────────────────────────────
-  final Map<String, Map<String, dynamic>> _statusConfig = {
-    'pending': {
-      'label': 'Pending',
-      'color': Colors.orange,
-      'icon': Icons.hourglass_empty,
-    },
-    'approved': {
-      'label': 'Approved',
-      'color': Colors.blue,
-      'icon': Icons.check_circle_outline,
-    },
-    'rejected': {
-      'label': 'Rejected',
-      'color': Colors.red,
-      'icon': Icons.cancel_outlined,
-    },
-    'in_progress': {
-      'label': 'In Progress',
-      'color': Colors.purple,
-      'icon': Icons.engineering,
-    },
-    'resolved': {
-      'label': 'Resolved',
-      'color': Color(0xFF2E7D32),
-      'icon': Icons.task_alt,
-    },
-  };
+  Map<String, Map<String, dynamic>> _statusConfig(
+      AppLocalizations l10n) =>
+      {
+        'pending': {
+          'label': l10n.pending,
+          'color': Colors.orange,
+          'icon': Icons.hourglass_empty,
+        },
+        'approved': {
+          'label': l10n.approved,
+          'color': Colors.blue,
+          'icon': Icons.check_circle_outline,
+        },
+        'rejected': {
+          'label': l10n.rejected,
+          'color': Colors.red,
+          'icon': Icons.cancel_outlined,
+        },
+        'in_progress': {
+          'label': l10n.inProgress,
+          'color': Colors.purple,
+          'icon': Icons.engineering,
+        },
+        'resolved': {
+          'label': l10n.resolved,
+          'color': const Color(0xFF2E7D32),
+          'icon': Icons.task_alt,
+        },
+      };
 
-  // ── STATUS BADGE ─────────────────────────────────────────────────
-  Widget _statusBadge(String status) {
-    final config = _statusConfig[status] ?? _statusConfig['pending']!;
+  Widget _statusBadge(String status, AppLocalizations l10n) {
+    final config = _statusConfig(l10n)[status] ??
+        _statusConfig(l10n)['pending']!;
     final color = config['color'] as Color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -75,20 +79,30 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
 
   // ── APPROVE ──────────────────────────────────────────────────────
   Future<void> _approveIssue(String issueId) async {
+    final l10n = AppLocalizations.of(context)!;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Approve Issue'),
-        content: const Text('Are you sure you want to approve this issue?'),
+        backgroundColor: AppTheme.cardColor(context),
+        title: Text(l10n.approveIssue,
+            style:
+            TextStyle(color: AppTheme.textPrimaryColor(context))),
+        content: Text(
+          'Are you sure you want to approve this issue?',
+          style:
+          TextStyle(color: AppTheme.textSecondaryColor(context)),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Approve'),
+            child: Text(l10n.approve),
           ),
         ],
       ),
@@ -119,72 +133,103 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
       await AuditService.log(
         action: 'ISSUE_APPROVED',
         description: 'Admin approved issue "${data['title']}"',
-        metadata: {'issueId': issueId, 'issueTitle': data['title']},
+        metadata: {
+          'issueId': issueId,
+          'issueTitle': data['title']
+        },
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Issue approved ✅'),
+        SnackBar(
+          content: Text('${l10n.approved} ✅'),
           backgroundColor: Colors.blue,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
 
   // ── REJECT ───────────────────────────────────────────────────────
   Future<void> _rejectIssue(String issueId) async {
+    final l10n = AppLocalizations.of(context)!;
     final reasonController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    String? rejectionReason;
 
-    final confirm = await showDialog<bool>(
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reject Issue'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: reasonController,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Reason for rejection',
-              hintText: 'Explain why this issue is being rejected...',
-              alignLabelWithHint: true,
-            ),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Reason is required';
-              if (v.trim().length < 10) return 'Please provide more detail';
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.of(ctx).pop(true);
-              }
-            },
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    ).then((result) {
-      reasonController.dispose();
-      return result;
-    });
+      builder: (ctx) {
+        bool isSaving = false;
 
-    if (confirm != true) return;
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) => PopScope(
+            canPop: !isSaving,
+            child: AlertDialog(
+              backgroundColor: AppTheme.cardColor(context),
+              title: Text(l10n.rejectIssue,
+                  style: TextStyle(
+                      color: AppTheme.textPrimaryColor(context))),
+              content: Form(
+                key: formKey,
+                child: TextFormField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: l10n.reasonRejection,
+                    hintText: l10n.explainRejection,
+                    alignLabelWithHint: true,
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Reason is required';
+                    }
+                    if (v.trim().length < 10) {
+                      return 'Please provide more detail';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(ctx).pop(),
+                  child: Text(l10n.cancel),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red),
+                  onPressed: isSaving
+                      ? null
+                      : () {
+                    if (formKey.currentState!.validate()) {
+                      rejectionReason =
+                          reasonController.text.trim();
+                      Navigator.of(ctx).pop();
+                    }
+                  },
+                  child: Text(l10n.reject),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // Dispose after dialog is fully closed
+    reasonController.dispose();
+
+    // Only proceed if reason was set (user clicked Reject not Cancel)
+    if (rejectionReason == null) return;
 
     try {
       await FirebaseFirestore.instance
@@ -194,11 +239,13 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
         'status': 'rejected',
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
       final issueDoc = await FirebaseFirestore.instance
           .collection('issues')
           .doc(issueId)
           .get();
       final data = issueDoc.data()!;
+
       await NotificationService.send(
         uid: data['uid'],
         title: 'Issue Rejected ❌',
@@ -206,30 +253,38 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
         type: 'issue_rejected',
         issueId: issueId,
       );
+
       await AuditService.log(
         action: 'ISSUE_REJECTED',
         description: 'Admin rejected issue "${data['title']}"',
-        metadata: {'issueId': issueId, 'issueTitle': data['title']},
+        metadata: {
+          'issueId': issueId,
+          'issueTitle': data['title'],
+          'reason': rejectionReason,
+        },
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Issue rejected'),
+        SnackBar(
+          content: Text(l10n.rejected),
           backgroundColor: Colors.red,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
-
   // ── UPDATE STATUS ────────────────────────────────────────────────
-  Future<void> _updateStatus(String issueId, String currentStatus) async {
-    // Only approved issues can progress
+  Future<void> _updateStatus(
+      String issueId, String currentStatus) async {
+    final l10n = AppLocalizations.of(context)!;
+
     final allowedTransitions = {
       'approved': ['in_progress'],
       'in_progress': ['resolved'],
@@ -244,19 +299,24 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setStateDialog) => AlertDialog(
-          title: const Text('Update Issue Status'),
+          backgroundColor: AppTheme.cardColor(context),
+          title: Text(l10n.updateStatus,
+              style: TextStyle(
+                  color: AppTheme.textPrimaryColor(context))),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: nextStatuses.map((status) {
-              final config = _statusConfig[status]!;
+              final config = _statusConfig(l10n)[status]!;
               final color = config['color'] as Color;
               return RadioListTile<String>(
                 value: status,
                 groupValue: selected,
-                onChanged: (v) => setStateDialog(() => selected = v),
+                onChanged: (v) =>
+                    setStateDialog(() => selected = v),
                 title: Row(
                   children: [
-                    Icon(config['icon'] as IconData, color: color, size: 18),
+                    Icon(config['icon'] as IconData,
+                        color: color, size: 18),
                     const SizedBox(width: 8),
                     Text(config['label'] as String),
                   ],
@@ -267,11 +327,11 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Update'),
+              child: Text(l10n.update),
             ),
           ],
         ),
@@ -297,29 +357,32 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Status updated to ${_statusConfig[selected]!['label']} ✅',
-          ),
+              '${_statusConfig(l10n)[selected]!['label']} ✅'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
-// ── ASSIGN TO FIELD OFFICER ──────────────────────────────────────
+
+  // ── ASSIGN TO FIELD OFFICER ──────────────────────────────────────
   Future<void> _assignToFO(String issueId) async {
-    // Fetch all field officers
+    final l10n = AppLocalizations.of(context)!;
+
     final foSnap = await FirebaseFirestore.instance
         .collection('users')
         .where('role', isEqualTo: 'fo')
         .get();
 
-    if (foSnap.docs.isEmpty) {
+    if (!mounted) return;
 
-      if (!mounted) return;
+    if (foSnap.docs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No field officers registered yet'),
@@ -336,7 +399,10 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setStateDialog) => AlertDialog(
-          title: const Text('Assign to Field Officer'),
+          backgroundColor: AppTheme.cardColor(context),
+          title: Text(l10n.assignToFO,
+              style: TextStyle(
+                  color: AppTheme.textPrimaryColor(context))),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: foSnap.docs.map((doc) {
@@ -356,13 +422,13 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             ElevatedButton(
               onPressed: selectedFOId == null
                   ? null
                   : () => Navigator.of(ctx).pop(true),
-              child: const Text('Assign'),
+              child: Text(l10n.assign),
             ),
           ],
         ),
@@ -379,7 +445,7 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
         'assignedTo': selectedFOId,
         'assignedToName': selectedFOName,
         'assignedAt': FieldValue.serverTimestamp(),
-        'taskStatus': 'assigned', // FO-specific status
+        'taskStatus': 'assigned',
         'updatedAt': FieldValue.serverTimestamp(),
       });
       final issueDoc = await FirebaseFirestore.instance
@@ -396,7 +462,8 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
       );
       await AuditService.log(
         action: 'TASK_ASSIGNED',
-        description: 'Admin assigned "${data['title']}" to $selectedFOName',
+        description:
+        'Admin assigned "${data['title']}" to $selectedFOName',
         metadata: {
           'issueId': issueId,
           'assignedTo': selectedFOId,
@@ -406,19 +473,24 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Assigned to $selectedFOName ✅'),
+          content: Text('$selectedFOName ✅'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
+
   // ── ISSUE DETAIL BOTTOM SHEET ────────────────────────────────────
   void _showIssueDetail(Map<String, dynamic> data, String issueId) {
+    final l10n = AppLocalizations.of(context)!;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -428,9 +500,10 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
         maxChildSize: 0.95,
         minChildSize: 0.4,
         builder: (ctx, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor(context),
+            borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24)),
           ),
           child: ListView(
             controller: scrollController,
@@ -442,7 +515,7 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.black26,
+                    color: AppTheme.borderColor(context),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -455,25 +528,27 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                   Expanded(
                     child: Text(
                       data['title'] ?? '',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimaryColor(context),
                       ),
                     ),
                   ),
-                  _statusBadge(data['status'] ?? 'pending'),
+                  _statusBadge(data['status'] ?? 'pending', l10n),
                 ],
               ),
               const SizedBox(height: 8),
 
-              // Meta info
-              _detailRow(Icons.person_outline, 'Reported by', data['userName'] ?? ''),
+              _detailRow(Icons.person_outline, l10n.reportedBy,
+                  data['userName'] ?? ''),
               const SizedBox(height: 6),
-              _detailRow(Icons.category_outlined, 'Issue Type', data['issueType'] ?? ''),
+              _detailRow(Icons.category_outlined, l10n.issueType,
+                  data['issueType'] ?? ''),
               const SizedBox(height: 6),
               _detailRow(
                 Icons.access_time,
-                'Submitted',
+                l10n.submitted,
                 data['createdAt'] != null
                     ? _formatDate(data['createdAt'].toDate())
                     : 'Unknown',
@@ -481,22 +556,33 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
               const Divider(height: 24),
 
               // Description
-              const Text(
-                'Description',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              Text(
+                l10n.description,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: AppTheme.textPrimaryColor(context),
+                ),
               ),
               const SizedBox(height: 6),
               Text(
                 data['description'] ?? '',
-                style: const TextStyle(color: Colors.black54, height: 1.5),
+                style: TextStyle(
+                  color: AppTheme.textSecondaryColor(context),
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 16),
 
               // Image
               if (data['imageUrl'] != null) ...[
-                const Text(
-                  'Photo Evidence',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                Text(
+                  l10n.photoEvidence,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppTheme.textPrimaryColor(context),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 ClipRRect(
@@ -510,7 +596,8 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                       if (progress == null) return child;
                       return const SizedBox(
                         height: 200,
-                        child: Center(child: CircularProgressIndicator()),
+                        child: Center(
+                            child: CircularProgressIndicator()),
                       );
                     },
                   ),
@@ -519,10 +606,15 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
               ],
 
               // Map
-              if (data['latitude'] != null && data['longitude'] != null) ...[
-                const Text(
-                  'Location',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              if (data['latitude'] != null &&
+                  data['longitude'] != null) ...[
+                Text(
+                  l10n.locationLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppTheme.textPrimaryColor(context),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 ClipRRect(
@@ -532,8 +624,8 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                     child: FlutterMap(
                       options: MapOptions(
                         initialCenter: LatLng(
-                          data['latitude'],
-                          data['longitude'],
+                          (data['latitude'] as num).toDouble(),
+                          (data['longitude'] as num).toDouble(),
                         ),
                         initialZoom: 15,
                         interactionOptions: const InteractionOptions(
@@ -544,14 +636,15 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                         TileLayer(
                           urlTemplate:
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.muscat.municipality',
+                          userAgentPackageName:
+                          'com.muscat.municipality',
                         ),
                         MarkerLayer(
                           markers: [
                             Marker(
                               point: LatLng(
-                                data['latitude'],
-                                data['longitude'],
+                                (data['latitude'] as num).toDouble(),
+                                (data['longitude'] as num).toDouble(),
                               ),
                               child: const Icon(
                                 Icons.location_pin,
@@ -568,7 +661,6 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                 const SizedBox(height: 20),
               ],
 
-              // ── ACTION BUTTONS ───────────────────────────
               const Divider(),
               const SizedBox(height: 12),
 
@@ -578,14 +670,16 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                        label: const Text(
-                          'Reject',
-                          style: TextStyle(color: Colors.red),
-                        ),
+                        icon: const Icon(Icons.cancel_outlined,
+                            color: Colors.red),
+                        label: Text(l10n.reject,
+                            style: const TextStyle(
+                                color: Colors.red)),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side:
+                          const BorderSide(color: Colors.red),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12),
                         ),
                         onPressed: () {
                           Navigator.pop(ctx);
@@ -596,11 +690,13 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('Approve'),
+                        icon: const Icon(
+                            Icons.check_circle_outline),
+                        label: Text(l10n.approve),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12),
                         ),
                         onPressed: () {
                           Navigator.pop(ctx);
@@ -612,18 +708,20 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                 ),
               ],
 
-              // Approved or In Progress → Update Status
-              if (data['status'] == 'approved' || data['status'] == 'in_progress') ...[
-                // Assign button — show if not yet assigned
+              // Approved or In Progress
+              if (data['status'] == 'approved' ||
+                  data['status'] == 'in_progress') ...[
                 if (data['assignedTo'] == null) ...[
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.person_add),
-                      label: const Text('Assign to Field Officer'),
+                      label: Text(l10n.assignToFO),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6A1B9A),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor:
+                        const Color(0xFF6A1B9A),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 12),
                       ),
                       onPressed: () {
                         Navigator.pop(ctx);
@@ -633,14 +731,15 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                   ),
                   const SizedBox(height: 10),
                 ] else ...[
-                  // Show who it's assigned to
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6A1B9A).withOpacity(0.08),
+                      color: const Color(0xFF6A1B9A)
+                          .withOpacity(0.08),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: const Color(0xFF6A1B9A).withOpacity(0.3),
+                        color: const Color(0xFF6A1B9A)
+                            .withOpacity(0.3),
                       ),
                     ),
                     child: Row(
@@ -649,7 +748,7 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                             color: Color(0xFF6A1B9A), size: 18),
                         const SizedBox(width: 8),
                         Text(
-                          'Assigned to: ${data['assignedToName']}',
+                          '${l10n.fieldOfficer}: ${data['assignedToName']}',
                           style: const TextStyle(
                             color: Color(0xFF6A1B9A),
                             fontWeight: FontWeight.w600,
@@ -664,9 +763,10 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.update),
-                    label: const Text('Update Status'),
+                    label: Text(l10n.updateStatus),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12),
                     ),
                     onPressed: () {
                       Navigator.pop(ctx);
@@ -676,22 +776,27 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                 ),
               ],
 
-              // Resolved or Rejected — no actions
+              // Resolved or Rejected
               if (data['status'] == 'resolved' ||
                   data['status'] == 'rejected') ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.04),
+                    color: AppTheme.isDark(context)
+                        ? Colors.white.withOpacity(0.05)
+                        : Colors.black.withOpacity(0.04),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     data['status'] == 'resolved'
-                        ? '✅ This issue has been resolved'
-                        : '❌ This issue has been rejected',
+                        ? '✅ ${l10n.resolved}'
+                        : '❌ ${l10n.rejected}',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.black45),
+                    style: TextStyle(
+                      color:
+                      AppTheme.textSecondaryColor(context),
+                    ),
                   ),
                 ),
               ],
@@ -707,28 +812,44 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
   }
 
   Widget _detailRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 15, color: Colors.black45),
-        const SizedBox(width: 6),
-        Text('$label: ',
-            style: const TextStyle(fontSize: 13, color: Colors.black45)),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+    return Builder(builder: (context) {
+      return Row(
+        children: [
+          Icon(icon,
+              size: 15,
+              color: AppTheme.textSecondaryColor(context)),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSecondaryColor(context),
+            ),
           ),
-        ),
-      ],
-    );
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textPrimaryColor(context),
+              ),
+            ),
+          ),
+        ],
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.backgroundColor(context),
       appBar: AppBar(
-        title: const Text('Issue Management'),
+        backgroundColor: AppTheme.backgroundColor(context),
+        title: Text(l10n.issueManagement),
       ),
       body: Column(
         children: [
@@ -752,15 +873,16 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                       child: FilterChip(
                         label: Text(
                           filter == 'all'
-                              ? 'All'
-                              : _statusConfig[filter]!['label'] as String,
+                              ? l10n.all
+                              : _statusConfig(l10n)[filter]![
+                          'label'] as String,
                         ),
                         selected: _selectedFilter == filter,
-                        onSelected: (_) =>
-                            setState(() => _selectedFilter = filter),
+                        onSelected: (_) => setState(
+                                () => _selectedFilter = filter),
                         selectedColor:
-                        const Color(0xFF2E7D32).withOpacity(0.15),
-                        checkmarkColor: const Color(0xFF2E7D32),
+                        AppTheme.primary.withOpacity(0.15),
+                        checkmarkColor: AppTheme.primary,
                       ),
                     ),
                 ],
@@ -776,21 +898,24 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(
+                      child: CircularProgressIndicator());
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return Center(
+                      child: Text('Error: ${snapshot.error}'));
                 }
 
                 var docs = snapshot.data?.docs ?? [];
 
-                // Apply filter
                 if (_selectedFilter != 'all') {
                   docs = docs.where((d) {
                     final data = d.data() as Map<String, dynamic>;
-                    return (data['status'] ?? '') == _selectedFilter;
+                    return (data['status'] ?? '') ==
+                        _selectedFilter;
                   }).toList();
                 }
 
@@ -799,14 +924,20 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.inbox,
-                            size: 48, color: Colors.black26),
+                        Icon(Icons.inbox,
+                            size: 48,
+                            color: AppTheme.textSecondaryColor(
+                                context)
+                                .withOpacity(0.4)),
                         const SizedBox(height: 8),
                         Text(
                           _selectedFilter == 'all'
-                              ? 'No issues submitted yet'
-                              : 'No ${_statusConfig[_selectedFilter]!['label']} issues',
-                          style: const TextStyle(color: Colors.black45),
+                              ? l10n.noIssuesSubmitted
+                              : '${l10n.noIssuesSubmitted} (${_statusConfig(l10n)[_selectedFilter]!['label']})',
+                          style: TextStyle(
+                            color: AppTheme.textSecondaryColor(
+                                context),
+                          ),
                         ),
                       ],
                     ),
@@ -816,47 +947,60 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, __) =>
+                  const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final doc = docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
+                    final data =
+                    doc.data() as Map<String, dynamic>;
                     final status = data['status'] ?? 'pending';
-                    final config = _statusConfig[status] ?? _statusConfig['pending']!;
+                    final config =
+                        _statusConfig(l10n)[status] ??
+                            _statusConfig(l10n)['pending']!;
                     final color = config['color'] as Color;
 
                     return GestureDetector(
-                      onTap: () => _showIssueDetail(data, doc.id),
+                      onTap: () =>
+                          _showIssueDetail(data, doc.id),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: const [
+                          color: AppTheme.cardColor(context),
+                          borderRadius:
+                          BorderRadius.circular(14),
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x0A000000),
+                              color:
+                              AppTheme.shadowColor(context),
                               blurRadius: 6,
                             ),
                           ],
                           border: Border(
-                            left: BorderSide(color: color, width: 4),
+                            left: BorderSide(
+                                color: color, width: 4),
                           ),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(14),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      data['title'] ?? 'No title',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
+                                      data['title'] ?? '',
+                                      style: TextStyle(
+                                        fontWeight:
+                                        FontWeight.w700,
                                         fontSize: 15,
+                                        color: AppTheme
+                                            .textPrimaryColor(
+                                            context),
                                       ),
                                     ),
                                   ),
-                                  _statusBadge(status),
+                                  _statusBadge(status, l10n),
                                 ],
                               ),
                               const SizedBox(height: 6),
@@ -864,33 +1008,45 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                                 data['description'] ?? '',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.black54,
+                                style: TextStyle(
+                                  color:
+                                  AppTheme.textSecondaryColor(
+                                      context),
                                   fontSize: 13,
                                 ),
                               ),
                               const SizedBox(height: 10),
                               Row(
                                 children: [
-                                  const Icon(Icons.person_outline,
-                                      size: 13, color: Colors.black38),
+                                  Icon(Icons.person_outline,
+                                      size: 13,
+                                      color:
+                                      AppTheme.textSecondaryColor(
+                                          context)),
                                   const SizedBox(width: 4),
                                   Text(
                                     data['userName'] ?? '',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.black38,
+                                      color:
+                                      AppTheme.textSecondaryColor(
+                                          context),
                                     ),
                                   ),
                                   const Spacer(),
-                                  const Icon(Icons.category_outlined,
-                                      size: 13, color: Colors.black38),
+                                  Icon(Icons.category_outlined,
+                                      size: 13,
+                                      color:
+                                      AppTheme.textSecondaryColor(
+                                          context)),
                                   const SizedBox(width: 4),
                                   Text(
                                     data['issueType'] ?? '',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.black38,
+                                      color:
+                                      AppTheme.textSecondaryColor(
+                                          context),
                                     ),
                                   ),
                                 ],

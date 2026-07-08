@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import 'login_form.dart';
 import 'register_form.dart';
 
@@ -19,9 +20,7 @@ class _AuthScreenState extends State<AuthScreen>
 
   static const Color _navy = Color(0xFF0A1628);
   static const Color _gold = Color(0xFFBFA15A);
-  static const Color _goldLight = Color(0xFFD4B96A);
   static const Color _surface = Color(0xFF0F1E38);
-  static const Color _cardBg = Color(0xFF152236);
 
   @override
   void initState() {
@@ -58,16 +57,14 @@ class _AuthScreenState extends State<AuthScreen>
 
   void _switchTab(bool loginTab) {
     if (isLogin == loginTab) return;
-
-    setState(() {
-      isLogin = loginTab;
-    });
-
+    setState(() => isLogin = loginTab);
     _animController.forward(from: 0);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: _navy,
       body: Stack(
@@ -75,30 +72,26 @@ class _AuthScreenState extends State<AuthScreen>
           SafeArea(
             child: Column(
               children: [
-                /// ✅ FIXED HERE (scrollable)
+                // ── HEADER ────────────────────────────────
                 Expanded(
                   flex: 4,
                   child: SingleChildScrollView(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 28),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const SizedBox(height: 40),
-
-                          const Text(
-                            "MUSCAT\nMUNICIPALITY",
-                            key: Key("app_title"),
+                          const SizedBox(height: 16),
+                          Text(
+                            l10n.appName.toUpperCase(),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
                             ),
                           ),
-
                           const SizedBox(height: 10),
-
                           const Text(
                             "Municipality Reporting System",
                             textAlign: TextAlign.center,
@@ -113,13 +106,14 @@ class _AuthScreenState extends State<AuthScreen>
                   ),
                 ),
 
+                // ── FORM AREA ─────────────────────────────
                 Expanded(
                   flex: 7,
                   child: Container(
                     width: double.infinity,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: _surface,
-                      borderRadius: const BorderRadius.only(
+                      borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(36),
                         topRight: Radius.circular(36),
                       ),
@@ -128,20 +122,20 @@ class _AuthScreenState extends State<AuthScreen>
                       children: [
                         const SizedBox(height: 20),
 
+                        // ── TABS ─────────────────────────
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24),
                           child: Row(
                             children: [
-                              _tab("Login", true,
-                                  key: const Key("login_tab")),
-                              _tab("Register", false,
-                                  key: const Key("register_tab")),
+                              _tab(l10n.login, true),
+                              _tab(l10n.register, false),
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 20),
 
+                        // ── FORM ──────────────────────────
                         Expanded(
                           child: FadeTransition(
                             opacity: _fadeAnim,
@@ -149,8 +143,8 @@ class _AuthScreenState extends State<AuthScreen>
                               position: _slideAnim,
                               child: SingleChildScrollView(
                                 child: isLogin
-                                    ? const  LoginForm()
-                                    : const  RegisterForm()
+                                    ? const LoginForm()
+                                    : const RegisterForm(),
                               ),
                             ),
                           ),
@@ -172,7 +166,7 @@ class _AuthScreenState extends State<AuthScreen>
 
     return Expanded(
       child: GestureDetector(
-
+        key: key,
         onTap: () => _switchTab(loginTab),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),

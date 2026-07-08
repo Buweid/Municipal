@@ -1,24 +1,35 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens/constants/app_theme.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_application_1/providers/settings_provider.dart';
-import 'package:flutter_application_1/screens/auth_screen.dart';
-import 'package:flutter_application_1/l10n/app_localizations.dart';
-import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'providers/settings_provider.dart';
+import 'screens/auth_screen.dart';
+import 'screens/welcome_screen.dart';
+import 'screens/role_router.dart';
+import 'l10n/app_localizations.dart';
+
+// ── GLOBAL SETTINGS INSTANCE ─────────────────────────────────────────
+SettingsProvider? globalSettings;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  final settings = SettingsProvider();
-  await settings.loadSettings();
+  globalSettings = SettingsProvider();
+  await globalSettings!.loadSettings();
+
+  final prefs = await SharedPreferences.getInstance();
+  final seenWelcome = prefs.getBool('seen_welcome') ?? false;
 
   runApp(
     RestartWidget(
       child: ChangeNotifierProvider.value(
-        value: settings,
-        child: const MunicipalApp(),
+        value: globalSettings!,
+        child: MunicipalApp(seenWelcome: seenWelcome),
       ),
     ),
   );
@@ -29,12 +40,13 @@ class RestartWidget extends StatefulWidget {
   final Widget child;
   const RestartWidget({super.key, required this.child});
 
-  static void restartApp(BuildContext context) {
+  static Future<void> restartApp(BuildContext context) async {
     FocusScope.of(context).unfocus();
-
-    final state = context.findAncestorStateOfType<_RestartWidgetState>();
+    await globalSettings!.persistLanguage();
+    final state =
+    context.findAncestorStateOfType<_RestartWidgetState>();
     if (state != null && state.mounted) {
-      state.restartApp();
+      await state.restartApp();
     }
   }
 
@@ -45,11 +57,8 @@ class RestartWidget extends StatefulWidget {
 class _RestartWidgetState extends State<RestartWidget> {
   Key _key = UniqueKey();
 
-  void restartApp() async {
-    // Reload settings from prefs before rebuilding
-    final settings = Provider.of<SettingsProvider>(context, listen: false);
-    await settings.loadSettings();
-
+  Future<void> restartApp() async {
+    await globalSettings!.loadSettings();
     if (mounted) {
       setState(() => _key = UniqueKey());
     }
@@ -61,12 +70,14 @@ class _RestartWidgetState extends State<RestartWidget> {
   }
 }
 
+// ── APP ───────────────────────────────────────────────────────────────
 class MunicipalApp extends StatelessWidget {
-  const MunicipalApp({super.key});
+  final bool seenWelcome;
+  const MunicipalApp({super.key, required this.seenWelcome});
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
+    final settings = Provider.of<SettingsProvider>(context);
 
     return MaterialApp(
       title: 'Muscat Municipality',
@@ -85,7 +96,55 @@ class MunicipalApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const AuthScreen(),
+      home: _getHome(),
+    );
+  }
+
+  Widget _getHome() {
+    if (!seenWelcome) return const WelcomeScreen();
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) return const _RoleResolverScreen();
+
+    return const AuthScreen();
+  }
+}
+
+// ── ROLE RESOLVER ─────────────────────────────────────────────────────
+class _RoleResolverScreen extends StatelessWidget {
+  const _RoleResolverScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(
+                color: AppTheme.primary,
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.hasError ||
+            !snapshot.hasData ||
+            !snapshot.data!.exists) {
+          return const AuthScreen();
+        }
+
+        final data =
+        snapshot.data!.data() as Map<String, dynamic>;
+        final role = data['role'] ?? 'user';
+
+        return RoleRouter(role: role);
+      },
     );
   }
 }

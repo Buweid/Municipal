@@ -40,7 +40,7 @@ dependencies:
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.0
   cloud_firestore: ^5.4.0
-  firebase_storage: ^12.3.2    # ← fixed, v12 matches core v3
+
 
   # Map
   flutter_map: ^6.1.0
@@ -63,6 +63,7 @@ dependencies:
   provider: ^6.1.2          # State management for theme/language
   shared_preferences: ^2.3.2 # Persist user settings locally
   http: ^1.2.2      #Anthropic API Ai
+  cloudinary_public: ^0.23.1
   # Generate unique issue IDs
   # For now (we'll add Firebase later if you want real auth)
   # google_fonts: ^6.2.1

@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 class NotificationService {
@@ -24,9 +23,8 @@ class NotificationService {
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-    } catch (e) {
+    } catch (_) {
       // Notification failure should never block main flow
-      debugPrint('NotificationService.send failed: $e');
     }
   }
 }

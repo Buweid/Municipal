@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers/settings_provider.dart';
 import '../constants/app_theme.dart';
 
 class AnalyticsScreen extends StatefulWidget {
@@ -136,17 +139,35 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return months[month - 1];
   }
 
+  static final String _rtlMark = String.fromCharCode(0x202B);
+  static final String _popMark = String.fromCharCode(0x202C);
+
+  String _rtlWrap(String text, bool isArabic) =>
+      isArabic ? '$_rtlMark$text$_popMark' : text;
+
   Future<void> _generatePDF() async {
     final l10n = AppLocalizations.of(context)!;
+    final isArabic = context.read<SettingsProvider>().isArabic;
     setState(() => _isGeneratingPdf = true);
 
     try {
+      pw.Font? arabicFont;
+      if (isArabic) {
+        final fontData =
+            await rootBundle.load('assets/fonts/Amiri-Regular.ttf');
+        arabicFont = pw.Font.ttf(fontData);
+      }
+
+      String t(String text) => _rtlWrap(text, isArabic);
+
       final pdf = pw.Document();
 
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(32),
+          textDirection:
+              isArabic ? pw.TextDirection.rtl : pw.TextDirection.ltr,
           build: (pw.Context context) => [
             // Header
             pw.Container(
@@ -160,8 +181,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    l10n.appName,
+                    t(l10n.appName),
                     style: pw.TextStyle(
+                      font: arabicFont,
                       color: PdfColors.white,
                       fontSize: 22,
                       fontWeight: pw.FontWeight.bold,
@@ -169,8 +191,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   pw.SizedBox(height: 4),
                   pw.Text(
-                    l10n.analyticsReports,
+                    t(l10n.analyticsReports),
                     style: pw.TextStyle(
+                      font: arabicFont,
                       color: PdfColors.white,
                       fontSize: 13,
                     ),
@@ -179,6 +202,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   pw.Text(
                     'Generated: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
                     style: pw.TextStyle(
+                      font: arabicFont,
                       color: PdfColors.white,
                       fontSize: 11,
                     ),
@@ -190,8 +214,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
             // Summary
             pw.Text(
-              l10n.overview,
+              t(l10n.overview),
               style: pw.TextStyle(
+                font: arabicFont,
                 fontSize: 16,
                 fontWeight: pw.FontWeight.bold,
               ),
@@ -201,27 +226,37 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               border: pw.TableBorder.all(
                   color: PdfColors.grey300),
               children: [
-                _pdfTableRow(l10n.totalIssues,
-                    _totalIssues.toString()),
+                _pdfTableRow(t(l10n.totalIssues),
+                    _totalIssues.toString(),
+                    font: arabicFont, isArabic: isArabic),
                 _pdfTableRow(
-                    l10n.pending, _pending.toString()),
+                    t(l10n.pending), _pending.toString(),
+                    font: arabicFont, isArabic: isArabic),
                 _pdfTableRow(
-                    l10n.approved, _approved.toString()),
+                    t(l10n.approved), _approved.toString(),
+                    font: arabicFont, isArabic: isArabic),
                 _pdfTableRow(
-                    l10n.inProgress, _inProgress.toString()),
+                    t(l10n.inProgress), _inProgress.toString(),
+                    font: arabicFont, isArabic: isArabic),
                 _pdfTableRow(
-                    l10n.resolved, _resolved.toString()),
+                    t(l10n.resolved), _resolved.toString(),
+                    font: arabicFont, isArabic: isArabic),
                 _pdfTableRow(
-                    l10n.rejected, _rejected.toString()),
+                    t(l10n.rejected), _rejected.toString(),
+                    font: arabicFont, isArabic: isArabic),
                 _pdfTableRow(
-                    l10n.citizens, _totalUsers.toString()),
-                _pdfTableRow(l10n.fieldOfficers,
-                    _totalFOs.toString()),
+                    t(l10n.citizens), _totalUsers.toString(),
+                    font: arabicFont, isArabic: isArabic),
+                _pdfTableRow(t(l10n.fieldOfficers),
+                    _totalFOs.toString(),
+                    font: arabicFont, isArabic: isArabic),
                 _pdfTableRow(
-                  l10n.avgRating,
+                  t(l10n.avgRating),
                   _ratedCount > 0
                       ? '${_avgRating.toStringAsFixed(1)} / 5.0 ($_ratedCount ${l10n.totalReviews})'
                       : 'N/A',
+                  font: arabicFont,
+                  isArabic: isArabic,
                 ),
               ],
             ),
@@ -231,6 +266,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             pw.Text(
               'Performance',
               style: pw.TextStyle(
+                font: arabicFont,
                 fontSize: 16,
                 fontWeight: pw.FontWeight.bold,
               ),
@@ -241,16 +277,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   color: PdfColors.grey300),
               children: [
                 _pdfTableRow(
-                  l10n.resolutionRate,
+                  t(l10n.resolutionRate),
                   _totalIssues > 0
                       ? '${(_resolved / _totalIssues * 100).toStringAsFixed(1)}%'
                       : '0%',
+                  font: arabicFont,
+                  isArabic: isArabic,
                 ),
                 _pdfTableRow(
-                  l10n.rejected,
+                  t(l10n.rejected),
                   _totalIssues > 0
                       ? '${(_rejected / _totalIssues * 100).toStringAsFixed(1)}%'
                       : '0%',
+                  font: arabicFont,
+                  isArabic: isArabic,
                 ),
               ],
             ),
@@ -258,8 +298,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
             if (_issueTypeCount.isNotEmpty) ...[
               pw.Text(
-                l10n.issuesByType,
+                t(l10n.issuesByType),
                 style: pw.TextStyle(
+                  font: arabicFont,
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
                 ),
@@ -271,7 +312,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 children: [
                   ..._issueTypeCount.entries.map(
                         (e) => _pdfTableRow(
-                        e.key, e.value.toString()),
+                        t(e.key), e.value.toString(),
+                        font: arabicFont, isArabic: isArabic),
                   ),
                 ],
               ),
@@ -280,8 +322,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
             if (_monthlyIssues.isNotEmpty) ...[
               pw.Text(
-                l10n.monthlyIssues,
+                t(l10n.monthlyIssues),
                 style: pw.TextStyle(
+                  font: arabicFont,
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
                 ),
@@ -293,7 +336,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 children: [
                   ..._monthlyIssues.entries.map(
                         (e) => _pdfTableRow(
-                        e.key, e.value.toString()),
+                        e.key, e.value.toString(),
+                        font: arabicFont, isArabic: isArabic),
                   ),
                 ],
               ),
@@ -321,7 +365,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   pw.TableRow _pdfTableRow(String col1, String col2,
-      {bool isHeader = false}) {
+      {bool isHeader = false, pw.Font? font, bool isArabic = false}) {
     return pw.TableRow(
       decoration: isHeader
           ? pw.BoxDecoration(
@@ -332,7 +376,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           padding: const pw.EdgeInsets.all(8),
           child: pw.Text(
             col1,
+            textDirection:
+                isArabic ? pw.TextDirection.rtl : null,
             style: pw.TextStyle(
+              font: font,
               fontWeight: isHeader
                   ? pw.FontWeight.bold
                   : pw.FontWeight.normal,
@@ -344,7 +391,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           padding: const pw.EdgeInsets.all(8),
           child: pw.Text(
             col2,
+            textDirection:
+                isArabic ? pw.TextDirection.rtl : null,
             style: pw.TextStyle(
+              font: font,
               fontWeight: isHeader
                   ? pw.FontWeight.bold
                   : pw.FontWeight.normal,

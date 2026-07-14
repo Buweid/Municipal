@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_application_1/l10n/app_localizations.dart';
+import '../../providers/settings_provider.dart';
 import '../add_fo_screen.dart';
 import '../constants/app_theme.dart';
 import '../shared/chatbot_screen.dart';
@@ -59,6 +61,7 @@ class AdminDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isArabic = context.watch<SettingsProvider>().isArabic;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor(context),
@@ -210,7 +213,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.report_outlined,
                   color: Colors.blue,
                   title: l10n.manageIssues,
-                  subtitle: 'View, approve, reject and assign issues',
+                  subtitle: isArabic
+                      ? 'عرض البلاغات والموافقة عليها وتعيينها'
+                      : 'View, approve, reject and assign issues',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(
                           builder: (_) => const IssueManagementScreen()))),
@@ -219,7 +224,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.people_outline,
                   color: Colors.teal,
                   title: l10n.manageUsers,
-                  subtitle: 'View and update citizen accounts',
+                  subtitle: isArabic
+                      ? 'عرض وتحديث حسابات المواطنين'
+                      : 'View and update citizen accounts',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(
                           builder: (_) => const ManageUsersScreen()))),
@@ -228,7 +235,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.person_add_outlined,
                   color: const Color(0xFF6A1B9A),
                   title: l10n.addFieldOfficer,
-                  subtitle: 'Register a new field officer account',
+                  subtitle: isArabic
+                      ? 'تسجيل حساب ضابط ميدان جديد'
+                      : 'Register a new field officer account',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(
                           builder: (_) => const AddFOScreen()))),
@@ -237,7 +246,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.category_outlined,
                   color: Colors.orange,
                   title: l10n.manageIssueTypes,
-                  subtitle: 'Add or delete issue categories',
+                  subtitle: isArabic
+                      ? 'إضافة أو حذف فئات البلاغات'
+                      : 'Add or delete issue categories',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(
                           builder: (_) => const ManageIssueTypesScreen()))),
@@ -246,7 +257,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.map_outlined,
                   color: Colors.teal,
                   title: l10n.issuesMap,
-                  subtitle: 'View issues on map and heat map',
+                  subtitle: isArabic
+                      ? 'عرض البلاغات على الخريطة'
+                      : 'View issues on map and heat map',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(
                           builder: (_) => const IssuesMapScreen()))),
@@ -255,7 +268,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.bar_chart,
                   color: Colors.red,
                   title: l10n.analyticsReports,
-                  subtitle: 'View stats and generate PDF reports',
+                  subtitle: isArabic
+                      ? 'عرض الإحصائيات وإنشاء تقارير PDF'
+                      : 'View stats and generate PDF reports',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(
                           builder: (_) => const AnalyticsScreen()))),
@@ -264,7 +279,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.history,
                   color: Colors.indigo,
                   title: l10n.activityLog,
-                  subtitle: 'View all system actions and audit trail',
+                  subtitle: isArabic
+                      ? 'عرض جميع إجراءات النظام'
+                      : 'View all system actions and audit trail',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(
                           builder: (_) => const AuditLogScreen()))),
@@ -273,7 +290,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.star_outline,
                   color: Colors.amber,
                   title: l10n.feedbackRatings,
-                  subtitle: 'View citizen ratings and respond to feedback',
+                  subtitle: isArabic
+                      ? 'عرض تقييمات المواطنين والرد عليها'
+                      : 'View citizen ratings and respond to feedback',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(
                           builder: (_) => const FeedbackScreen()))),
@@ -282,7 +301,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.campaign_outlined,
                   color: const Color(0xFF2E7D32),
                   title: l10n.broadcastNotifications,
-                  subtitle: 'Send messages to citizens or field officers',
+                  subtitle: isArabic
+                      ? 'إرسال رسائل للمواطنين أو ضباط الميدان'
+                      : 'Send messages to citizens or field officers',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(
                           builder: (_) => const BroadcastScreen()))),
@@ -291,7 +312,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.smart_toy_outlined,
                   color: AppTheme.primary,
                   title: l10n.aiAssistant,
-                  subtitle: 'Get help and answers instantly',
+                  subtitle: isArabic
+                      ? 'احصل على مساعدة وإجابات فورية'
+                      : 'Get help and answers instantly',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(
                           builder: (_) => const ChatbotScreen()))),

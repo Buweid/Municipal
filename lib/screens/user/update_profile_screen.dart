@@ -57,7 +57,7 @@ class _UpdateProfileScreenState
 
   Future<void> _loadProfile() async {
     try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -91,7 +91,7 @@ class _UpdateProfileScreenState
     setState(() => _isSaving = true);
 
     try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -145,10 +145,21 @@ class _UpdateProfileScreenState
       return;
     }
 
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || currentUser.email == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be logged in to change your password'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isChangingPassword = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser!;
+      final user = currentUser;
       final credential = EmailAuthProvider.credential(
         email: user.email!,
         password: _currentPasswordController.text.trim(),
@@ -242,6 +253,7 @@ class _UpdateProfileScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsProvider>();
+    final isArabic = settings.isArabic;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor(context),
@@ -347,7 +359,9 @@ class _UpdateProfileScreenState
                   labelText: l10n.fullName,
                   prefixIcon:
                   const Icon(Icons.person_outline),
-                  hintText: 'e.g. Ahmed Ali Al-Rashdi',
+                  hintText: isArabic
+                      ? 'مثال: أحمد علي الرشدي'
+                      : 'e.g. Ahmed Ali Al-Rashdi',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
@@ -387,8 +401,9 @@ class _UpdateProfileScreenState
                   labelText: l10n.phoneNumber,
                   prefixIcon:
                   const Icon(Icons.phone_outlined),
-                  hintText:
-                  '+968  7XXXXXXX or 9XXXXXXX',
+                  hintText: isArabic
+                      ? '+968  7XXXXXXX أو 9XXXXXXX'
+                      : '+968  7XXXXXXX or 9XXXXXXX',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
@@ -415,7 +430,8 @@ class _UpdateProfileScreenState
                   labelText: l10n.nationalId,
                   prefixIcon:
                   const Icon(Icons.badge_outlined),
-                  hintText: '8 - 12 digits',
+                  hintText:
+                      isArabic ? '8 - 12 رقماً' : '8 - 12 digits',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
@@ -528,7 +544,9 @@ class _UpdateProfileScreenState
                     labelText: l10n.newPassword,
                     prefixIcon:
                     const Icon(Icons.lock_outline),
-                    hintText: '6 - 15 characters',
+                    hintText: isArabic
+                        ? '6 - 15 حرفاً'
+                        : '6 - 15 characters',
                     suffixIcon: IconButton(
                       icon: Icon(_obscureNew
                           ? Icons.visibility_outlined

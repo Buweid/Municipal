@@ -30,7 +30,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   }
 
   Future<void> _loadUserData() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final doc = await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
@@ -452,7 +452,7 @@ class _RecentIssuesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance

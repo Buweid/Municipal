@@ -12,7 +12,8 @@ class MyIssuesScreen extends StatefulWidget {
 }
 
 class _MyIssuesScreenState extends State<MyIssuesScreen> {
-  final String _currentUid = FirebaseAuth.instance.currentUser!.uid;
+  String get _currentUid =>
+      FirebaseAuth.instance.currentUser?.uid ?? '';
   String _selectedFilter = 'all';
 
   Map<String, Map<String, dynamic>> _statusConfig(AppLocalizations l10n) => {
@@ -342,6 +343,28 @@ class _MyIssuesScreenState extends State<MyIssuesScreen> {
                     data['imageUrl'],
                     height: 180,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.grey,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: Colors.grey.shade100,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 16),

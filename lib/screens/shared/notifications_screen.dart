@@ -62,7 +62,7 @@ class NotificationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(

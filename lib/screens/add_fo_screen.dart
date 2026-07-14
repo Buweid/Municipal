@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 import '../screens/constants/app_theme.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/settings_provider.dart';
 import '../screens/services/audit_service.dart';
 class AddFOScreen extends StatefulWidget {
   const AddFOScreen({super.key});
@@ -144,6 +146,7 @@ class _AddFOScreenState extends State<AddFOScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isArabic = context.read<SettingsProvider>().isArabic;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor(context),
@@ -190,7 +193,9 @@ class _AddFOScreenState extends State<AddFOScreen> {
                   labelText: l10n.fullName,
                   prefixIcon:
                   const Icon(Icons.person_outline),
-                  hintText: 'e.g. Ahmed Ali Al-Rashdi',
+                  hintText: isArabic
+                      ? 'مثال: أحمد علي الرشدي'
+                      : 'e.g. Ahmed Ali Al-Rashdi',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
@@ -222,7 +227,8 @@ class _AddFOScreenState extends State<AddFOScreen> {
                   labelText: l10n.nationalId,
                   prefixIcon:
                   const Icon(Icons.badge_outlined),
-                  hintText: '8 - 12 digits',
+                  hintText:
+                      isArabic ? '8 - 12 رقماً' : '8 - 12 digits',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
@@ -245,7 +251,9 @@ class _AddFOScreenState extends State<AddFOScreen> {
                   labelText: l10n.phoneNumber,
                   prefixIcon:
                   const Icon(Icons.phone_outlined),
-                  hintText: '+968  7XXXXXXX or 9XXXXXXX',
+                  hintText: isArabic
+                      ? '+968  7XXXXXXX أو 9XXXXXXX'
+                      : '+968  7XXXXXXX or 9XXXXXXX',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
@@ -292,7 +300,9 @@ class _AddFOScreenState extends State<AddFOScreen> {
                   labelText: l10n.password,
                   prefixIcon:
                   const Icon(Icons.lock_outline),
-                  hintText: '6 - 15 characters',
+                  hintText: isArabic
+                      ? '6 - 15 حرفاً'
+                      : '6 - 15 characters',
                   suffixIcon: IconButton(
                     icon: Icon(_obscurePassword
                         ? Icons.visibility

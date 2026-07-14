@@ -21,7 +21,8 @@ class FOTasksScreen extends StatefulWidget {
 
 class _FOTasksScreenState extends State<FOTasksScreen> {
   String _selectedFilter = 'all';
-  final String _currentFOId = FirebaseAuth.instance.currentUser!.uid;
+  String get _currentFOId =>
+      FirebaseAuth.instance.currentUser?.uid ?? '';
 
   Map<String, Map<String, dynamic>> _taskStatusConfig(
       AppLocalizations l10n) =>
@@ -507,6 +508,28 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                     data['imageUrl'],
                     height: 180,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.grey,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: Colors.grey.shade100,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -526,6 +549,28 @@ class _FOTasksScreenState extends State<FOTasksScreen> {
                     data['evidenceUrl'],
                     height: 180,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.grey,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: Colors.grey.shade100,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 16),

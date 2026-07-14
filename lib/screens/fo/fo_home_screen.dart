@@ -29,7 +29,7 @@ class _FOHomeScreenState extends State<FOHomeScreen> {
   }
 
   Future<void> _loadData() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final userDoc = await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
@@ -147,7 +147,7 @@ class _FOHomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor(context),

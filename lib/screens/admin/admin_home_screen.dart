@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '/screens/constants/app_theme.dart';
+import '../../l10n/app_localizations.dart';
+import '../constants/app_theme.dart';
 import 'admin_dashboard_screen.dart';
 import 'issue_management_screen.dart';
 import 'manage_users_screen.dart';
@@ -18,8 +19,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.backgroundColor(context),
       body: IndexedStack(
         index: _currentIndex,
         children: const [
@@ -27,20 +30,25 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           IssueManagementScreen(key: PageStorageKey('issues')),
           ManageUsersScreen(key: PageStorageKey('users')),
           AnalyticsScreen(key: PageStorageKey('analytics')),
+          // ← 4 screens, settings is pushed as route
         ],
       ),
       bottomNavigationBar: Container(
-        decoration:  BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.cardColor(context),
-          border: Border(top: BorderSide(color: AppTheme.borderColor(context))),
+          border: Border(
+              top: BorderSide(color: AppTheme.borderColor(context))),
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentIndex,
+          // ← clamp index to 0-3 so it never goes out of range
+          currentIndex: _currentIndex.clamp(0, 3),
           onTap: (i) {
             if (i == 4) {
+              // Settings → push as route
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const UpdateProfileScreen()),
+                MaterialPageRoute(
+                    builder: (_) => const UpdateProfileScreen()),
               );
               return;
             }
@@ -48,31 +56,31 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           },
           backgroundColor: AppTheme.cardColor(context),
           elevation: 0,
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard),
-              label: 'Dashboard',
+              icon: const Icon(Icons.dashboard_outlined),
+              activeIcon: const Icon(Icons.dashboard),
+              label: l10n.adminDashboard,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.report_outlined),
-              activeIcon: Icon(Icons.report),
-              label: 'Issues',
+              icon: const Icon(Icons.report_outlined),
+              activeIcon: const Icon(Icons.report),
+              label: l10n.manageIssues,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.people_outline),
-              activeIcon: Icon(Icons.people),
-              label: 'Users',
+              icon: const Icon(Icons.people_outline),
+              activeIcon: const Icon(Icons.people),
+              label: l10n.manageUsers,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined),
-              activeIcon: Icon(Icons.bar_chart),
-              label: 'Analytics',
+              icon: const Icon(Icons.bar_chart_outlined),
+              activeIcon: const Icon(Icons.bar_chart),
+              label: l10n.analyticsReports,
             ),
-            BottomNavigationBarItem( // ← removed duplicate const
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: 'Settings',
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.settings_outlined),
+              activeIcon: const Icon(Icons.settings),
+              label: l10n.settings,
             ),
           ],
         ),

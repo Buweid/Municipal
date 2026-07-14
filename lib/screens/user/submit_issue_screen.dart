@@ -207,10 +207,21 @@ class _SubmitIssueScreenState extends State<SubmitIssueScreen> {
       return;
     }
 
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be logged in to submit an issue'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser!;
+      final user = currentUser;
       final issueId = const Uuid().v4();
 
       final userDoc = await FirebaseFirestore.instance
@@ -335,6 +346,7 @@ class _SubmitIssueScreenState extends State<SubmitIssueScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isArabic = context.read<SettingsProvider>().isArabic;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor(context),
@@ -360,8 +372,9 @@ class _SubmitIssueScreenState extends State<SubmitIssueScreen> {
                 decoration: InputDecoration(
                   labelText: l10n.issueTitle,
                   prefixIcon: const Icon(Icons.title),
-                  hintText:
-                  'e.g. Large pothole on main road',
+                  hintText: isArabic
+                      ? 'مثال: حفرة كبيرة في الطريق الرئيسي'
+                      : 'e.g. Large pothole on main road',
                 ),
                 onChanged: (value) async {
                   if (value.trim().length >= 3 &&

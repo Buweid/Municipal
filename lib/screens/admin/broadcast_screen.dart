@@ -69,7 +69,7 @@ class _BroadcastScreenState extends State<BroadcastScreen>
       final batch = FirebaseFirestore.instance.batch();
       final now = FieldValue.serverTimestamp();
       final adminUid =
-          FirebaseAuth.instance.currentUser!.uid;
+          FirebaseAuth.instance.currentUser?.uid ?? '';
 
       for (final doc in usersSnap.docs) {
         final uid = doc.id;

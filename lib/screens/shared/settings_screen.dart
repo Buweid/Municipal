@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/settings_provider.dart';
 import '../../main.dart';
@@ -67,11 +66,6 @@ class SettingsScreen extends StatelessWidget {
                   if (!context.mounted) return;
 
                   // ← DEBUG
-                  final user =
-                      FirebaseAuth.instance.currentUser;
-                  print(
-                      '🔵 Language change → en | User: ${user?.email} | UID: ${user?.uid}');
-
                   final rootContext =
                       Navigator.of(context, rootNavigator: true)
                           .context;
@@ -92,11 +86,6 @@ class SettingsScreen extends StatelessWidget {
                   if (!context.mounted) return;
 
                   // ← DEBUG
-                  final user =
-                      FirebaseAuth.instance.currentUser;
-                  print(
-                      '🔵 Language change → ar | User: ${user?.email} | UID: ${user?.uid}');
-
                   final rootContext =
                       Navigator.of(context, rootNavigator: true)
                           .context;

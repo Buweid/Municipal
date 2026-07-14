@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 class AuditService {
@@ -25,9 +24,8 @@ class AuditService {
         'metadata': metadata ?? {},
         'createdAt': FieldValue.serverTimestamp(),
       });
-    } catch (e) {
+    } catch (_) {
       // Never block main flow
-      debugPrint('AuditService.log failed: $e');
     }
   }
 }

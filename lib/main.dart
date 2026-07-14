@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens/constants/app_theme.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/settings_provider.dart';
@@ -12,33 +13,26 @@ import 'screens/welcome_screen.dart';
 import 'screens/role_router.dart';
 import 'l10n/app_localizations.dart';
 
-// ── GLOBAL SETTINGS INSTANCE ─────────────────────────────────────────
+// ── GLOBAL SETTINGS ───────────────────────────────────────────────────
 SettingsProvider? globalSettings;
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  WidgetsBinding widgetsBinding =
+      WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
+  await Firebase.initializeApp();
   globalSettings = SettingsProvider();
   await globalSettings!.loadSettings();
 
-  final prefs = await SharedPreferences.getInstance();
-  final seenWelcome = prefs.getBool('seen_welcome') ?? false;
+  FlutterNativeSplash.remove();
 
-  runApp(
-    RestartWidget(
-      child: ChangeNotifierProvider.value(
-        value: globalSettings!,
-        child: MunicipalApp(seenWelcome: seenWelcome),
-      ),
-    ),
-  );
+  runApp(const RestartWidget());
 }
 
 // ── RESTART WIDGET ────────────────────────────────────────────────────
 class RestartWidget extends StatefulWidget {
-  final Widget child;
-  const RestartWidget({super.key, required this.child});
+  const RestartWidget({super.key});
 
   static Future<void> restartApp(BuildContext context) async {
     FocusScope.of(context).unfocus();
@@ -56,9 +50,28 @@ class RestartWidget extends StatefulWidget {
 
 class _RestartWidgetState extends State<RestartWidget> {
   Key _key = UniqueKey();
+  bool _seenWelcome = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _seenWelcome =
+            prefs.getBool('seen_welcome') ?? false;
+      });
+    }
+  }
 
   Future<void> restartApp() async {
     await globalSettings!.loadSettings();
+    final prefs = await SharedPreferences.getInstance();
+    _seenWelcome = prefs.getBool('seen_welcome') ?? false;
     if (mounted) {
       setState(() => _key = UniqueKey());
     }
@@ -66,7 +79,13 @@ class _RestartWidgetState extends State<RestartWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return KeyedSubtree(key: _key, child: widget.child);
+    return KeyedSubtree(
+      key: _key,
+      child: ChangeNotifierProvider.value(
+        value: globalSettings!,
+        child: MunicipalApp(seenWelcome: _seenWelcome),
+      ),
+    );
   }
 }
 
@@ -102,10 +121,8 @@ class MunicipalApp extends StatelessWidget {
 
   Widget _getHome() {
     if (!seenWelcome) return const WelcomeScreen();
-
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) return const _RoleResolverScreen();
-
     return const AuthScreen();
   }
 }
@@ -116,10 +133,13 @@ class _RoleResolverScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const AuthScreen();
+
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance
           .collection('users')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .doc(user.uid)
           .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState ==
@@ -127,8 +147,7 @@ class _RoleResolverScreen extends StatelessWidget {
           return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(
-                color: AppTheme.primary,
-              ),
+                  color: AppTheme.primary),
             ),
           );
         }

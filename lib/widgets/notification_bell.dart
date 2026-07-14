@@ -8,7 +8,8 @@ class NotificationBell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox();
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance

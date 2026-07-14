@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isFO() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'fo';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Issues collection
+    match /issues/{issueId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        isOwner(resource.data.uid) ||
+        (isFO() && resource.data.assignedTo == request.auth.uid)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Notifications collection
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() &&
+        resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() &&
+        resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() &&
+        resource.data.uid == request.auth.uid;
+    }
+
+    // Issue types collection
+    match /issue_types/{typeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Audit logs collection
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // Broadcast history collection
+    match /broadcast_history/{broadcastId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+  }
+}

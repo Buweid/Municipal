@@ -103,7 +103,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-   - assets/images/logo1.jpeg
+   - assets/images/app_icon.png
    - assets/images/logo2.jpeg
    - assets/fonts/Amiri-Regular.ttf
 

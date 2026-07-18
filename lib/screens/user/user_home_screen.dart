@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_1/l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
+import '../../providers/settings_provider.dart';
+import '../constants/app_theme.dart';
+
 import '../../widgets/app_card.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/section_header.dart';
-import '../constants/app_theme.dart';
 import '../shared/chatbot_screen.dart';
 import 'submit_issue_screen.dart';
 import 'my_issues_screen.dart';
@@ -30,23 +33,29 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   }
 
   Future<void> _loadUserData() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     final doc = await FirebaseFirestore.instance
         .collection('users')
-        .doc(uid)
+        .doc(user.uid)
         .get();
 
     final issuesSnap = await FirebaseFirestore.instance
         .collection('issues')
-        .where('uid', isEqualTo: uid)
+        .where('uid', isEqualTo: user.uid)
         .get();
 
     int pending = 0, inProgress = 0, resolved = 0;
     for (final d in issuesSnap.docs) {
       final status = d['status'] ?? 'pending';
-      if (status == 'pending' || status == 'approved') pending++;
-      else if (status == 'in_progress') inProgress++;
-      else if (status == 'resolved') resolved++;
+      if (status == 'pending' || status == 'approved') {
+        pending++;
+      } else if (status == 'in_progress') {
+        inProgress++;
+      } else if (status == 'resolved') {
+        resolved++;
+      }
     }
 
     if (mounted) {
@@ -67,7 +76,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.backgroundColor(context),
+      // ← IndexedStack has 3 screens: Home(0), Report(1), MyIssues(2)
       body: IndexedStack(
         index: _currentIndex,
         children: [
@@ -78,27 +88,40 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             onSubmitTap: () => setState(() => _currentIndex = 1),
             onIssuesTap: () => setState(() => _currentIndex = 2),
           ),
-          const SubmitIssueScreen(key: PageStorageKey('submit')),
-          const MyIssuesScreen(key: PageStorageKey('myissues')),
+          const SubmitIssueScreen(
+              key: PageStorageKey('submit')),
+          const MyIssuesScreen(
+              key: PageStorageKey('myissues')),
         ],
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppTheme.cardColor(context),
-          border: Border(top: BorderSide(color: AppTheme.borderColor(context))),
+          border: Border(
+            top: BorderSide(
+                color: AppTheme.borderColor(context)),
+          ),
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentIndex > 2 ? 0 : _currentIndex,
+          // ← clamp to 0-2 so it never goes out of range
+          currentIndex: _currentIndex.clamp(0, 2),
           onTap: (i) {
             if (i == 3) {
+              // Profile → push as route
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const UpdateProfileScreen()),
+                MaterialPageRoute(
+                  builder: (_) =>
+                  const UpdateProfileScreen(),
+                ),
               );
               return;
             }
+            // Only set indices 0, 1, 2
             setState(() => _currentIndex = i);
           },
+          backgroundColor: AppTheme.cardColor(context),
+          elevation: 0,
           items: [
             BottomNavigationBarItem(
               icon: const Icon(Icons.home_outlined),
@@ -125,10 +148,12 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppTheme.primary,
-        child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+        child: const Icon(Icons.smart_toy_outlined,
+            color: Colors.white),
         onPressed: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+          MaterialPageRoute(
+              builder: (_) => const ChatbotScreen()),
         ),
       ),
     );
@@ -154,16 +179,17 @@ class _HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isArabic = context.watch<SettingsProvider>().isArabic;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.backgroundColor(context),
       appBar: AppBar(
         backgroundColor: AppTheme.backgroundColor(context),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Hello, ${userName.split(' ').first} 👋',
+              '${isArabic ? 'مرحباً' : 'Hello'}, ${userName.split(' ').first} 👋',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -184,12 +210,15 @@ class _HomeTab extends StatelessWidget {
         actions: [
           const NotificationBell(),
           IconButton(
-            icon: Icon(Icons.logout_outlined,
-                color: AppTheme.textSecondaryColor(context)),
+            icon: Icon(
+              Icons.logout_outlined,
+              color: AppTheme.textSecondaryColor(context),
+            ),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
-                Navigator.of(context).pushReplacementNamed('/');
+                Navigator.of(context)
+                    .pushReplacementNamed('/');
               }
             },
           ),
@@ -210,11 +239,15 @@ class _HomeTab extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppTheme.primary, AppTheme.primaryDark],
+                    colors: [
+                      AppTheme.primary,
+                      AppTheme.primaryDark
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  borderRadius:
+                  BorderRadius.circular(AppTheme.radiusLg),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,15 +278,16 @@ class _HomeTab extends StatelessWidget {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius:
-                          BorderRadius.circular(AppTheme.radiusMd),
+                          color: AppTheme.cardColor(context),
+                          borderRadius: BorderRadius.circular(
+                              AppTheme.radiusMd),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.add,
-                                color: AppTheme.primary, size: 18),
+                                color: AppTheme.primary,
+                                size: 18),
                             const SizedBox(width: 6),
                             Text(
                               l10n.submitReport,
@@ -283,7 +317,8 @@ class _HomeTab extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _StatCard(
-                      value: (issueStats['total'] ?? 0).toString(),
+                      value: (issueStats['total'] ?? 0)
+                          .toString(),
                       label: l10n.total,
                       color: AppTheme.info,
                       icon: Icons.report_outlined,
@@ -292,7 +327,8 @@ class _HomeTab extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _StatCard(
-                      value: (issueStats['pending'] ?? 0).toString(),
+                      value: (issueStats['pending'] ?? 0)
+                          .toString(),
                       label: l10n.pending,
                       color: AppTheme.warning,
                       icon: Icons.hourglass_empty,
@@ -301,7 +337,8 @@ class _HomeTab extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _StatCard(
-                      value: (issueStats['resolved'] ?? 0).toString(),
+                      value: (issueStats['resolved'] ?? 0)
+                          .toString(),
                       label: l10n.resolved,
                       color: AppTheme.primary,
                       icon: Icons.task_alt,
@@ -452,17 +489,19 @@ class _RecentIssuesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const SizedBox();
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('issues')
-          .where('uid', isEqualTo: uid)
+          .where('uid', isEqualTo: user.uid)
           .orderBy('createdAt', descending: true)
           .limit(3)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(20),
@@ -481,13 +520,15 @@ class _RecentIssuesList extends StatelessWidget {
                 Icon(
                   Icons.inbox_outlined,
                   size: 40,
-                  color: AppTheme.textSecondaryColor(context).withOpacity(0.4),
+                  color: AppTheme.textSecondaryColor(context)
+                      .withOpacity(0.4),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   l10n.noReportsYet,
                   style: TextStyle(
-                    color: AppTheme.textSecondaryColor(context),
+                    color:
+                    AppTheme.textSecondaryColor(context),
                     fontSize: 14,
                   ),
                 ),
@@ -495,7 +536,8 @@ class _RecentIssuesList extends StatelessWidget {
                 Text(
                   l10n.tapToSubmit,
                   style: TextStyle(
-                    color: AppTheme.textSecondaryColor(context),
+                    color:
+                    AppTheme.textSecondaryColor(context),
                     fontSize: 12,
                   ),
                 ),
@@ -517,7 +559,8 @@ class _RecentIssuesList extends StatelessWidget {
           children: docs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final status = data['status'] ?? 'pending';
-            final color = statusColors[status] ?? AppTheme.warning;
+            final color =
+                statusColors[status] ?? AppTheme.warning;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -535,14 +578,16 @@ class _RecentIssuesList extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
                         children: [
                           Text(
                             data['title'] ?? '',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
-                              color: AppTheme.textPrimaryColor(context),
+                              color: AppTheme.textPrimaryColor(
+                                  context),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -552,7 +597,8 @@ class _RecentIssuesList extends StatelessWidget {
                             data['issueType'] ?? '',
                             style: TextStyle(
                               fontSize: 12,
-                              color: AppTheme.textSecondaryColor(context),
+                              color: AppTheme.textSecondaryColor(
+                                  context),
                             ),
                           ),
                         ],
@@ -563,8 +609,8 @@ class _RecentIssuesList extends StatelessWidget {
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: color.withOpacity(0.1),
-                        borderRadius:
-                        BorderRadius.circular(AppTheme.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                            AppTheme.radiusSm),
                       ),
                       child: Text(
                         status.replaceAll('_', ' '),

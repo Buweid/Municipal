@@ -4,8 +4,8 @@ import 'package:http/http.dart' as http;
 class AIService {
   static const String _apiUrl =
       'https://api.groq.com/openai/v1/chat/completions';
-  static const String _apiKey = String.fromEnvironment('GROQ_API_KEY');
-  static const String _model = 'llama-3.1-8b-instant';
+  static const String _apiKey = 'code_Here_with_no_space';
+  static const String _model = 'llama-3.3-70b-versatile';
 
   static const String _systemPrompt = '''You are a helpful assistant 
 for Muscat Municipality's reporting system in Oman. Help citizens 
@@ -18,8 +18,9 @@ If asked about unrelated topics, politely redirect to municipality services.''';
   static Future<Map<String, dynamic>?> _post(
       List<Map<String, String>> messages) async {
     try {
-      final response = await http
-          .post(
+      print('🔵 Calling Groq API...');
+      print('🔵 Using key: ${_apiKey.substring(0, 8)}...');
+      final response = await http.post(
         Uri.parse(_apiUrl),
         headers: {
           'Content-Type': 'application/json',
@@ -34,14 +35,17 @@ If asked about unrelated topics, politely redirect to municipality services.''';
           'max_tokens': 512,
           'temperature': 0.7,
         }),
-      )
-          .timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 15));
+
+      print('🟢 Status: ${response.statusCode}');
+      print('🟢 Body: ${response.body}');
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
       return null;
-    } catch (_) {
+    } catch (e) {
+      print('🔴 Error: $e');
       return null;
     }
   }

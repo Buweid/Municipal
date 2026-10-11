@@ -1,0 +1,1642 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
+import '../../providers/settings_provider.dart';
+import '../constants/app_theme.dart';
+import '../services/notification_service.dart';
+import '../services/audit_service.dart';
+
+class IssueManagementScreen extends StatefulWidget {
+  const IssueManagementScreen({super.key});
+
+  @override
+  State<IssueManagementScreen> createState() =>
+      _IssueManagementScreenState();
+}
+
+class _IssueManagementScreenState
+    extends State<IssueManagementScreen> {
+  String _selectedFilter = 'all';
+
+  Map<String, Map<String, dynamic>> _statusConfig(
+      AppLocalizations l10n) =>
+      {
+        'pending': {
+          'label': l10n.pending,
+          'color': Colors.orange,
+          'icon': Icons.hourglass_empty,
+        },
+        'approved': {
+          'label': l10n.approved,
+          'color': const Color(0xFF0EA5E9),
+          'icon': Icons.check_circle_outline,
+        },
+        'rejected': {
+          'label': l10n.rejected,
+          'color': Colors.red,
+          'icon': Icons.cancel_outlined,
+        },
+        'in_progress': {
+          'label': l10n.inProgress,
+          'color': Colors.purple,
+          'icon': Icons.engineering,
+        },
+        'resolved': {
+          'label': l10n.resolved,
+          'color': const Color(0xFF2E7D32),
+          'icon': Icons.task_alt,
+        },
+      };
+
+  Widget _statusBadge(String status, AppLocalizations l10n) {
+    final config = _statusConfig(l10n)[status] ??
+        _statusConfig(l10n)['pending']!;
+    final color = config['color'] as Color;
+    return Container(
+      padding:
+      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            config['label'] as String,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── ISSUE TYPE ICON MAPPING ────────────────────────────────────────
+  final Map<String, IconData> _issueTypeIcons = {
+    'Road': Icons.add_road,
+    'Water': Icons.water_damage,
+    'Electricity': Icons.electrical_services,
+    'Garbage': Icons.delete_outline,
+    'Tree': Icons.park,
+    'Building': Icons.apartment,
+    'Lighting': Icons.lightbulb_outline,
+    'Sewage': Icons.plumbing,
+    'Noise': Icons.volume_up,
+    'Other': Icons.report_problem_outlined,
+  };
+
+  IconData _getIssueIcon(String? issueType) {
+    if (issueType == null) return Icons.report_problem_outlined;
+    for (final key in _issueTypeIcons.keys) {
+      if (issueType.toLowerCase().contains(key.toLowerCase())) {
+        return _issueTypeIcons[key]!;
+      }
+    }
+    return Icons.report_problem_outlined;
+  }
+
+  // ── TIME AGO ─────────────────────────────────────────────────────
+  String _timeAgo(dynamic timestamp) {
+    if (timestamp == null) return '';
+    final date = (timestamp as dynamic).toDate() as DateTime;
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  // ── APPROVE ──────────────────────────────────────────────────────
+  Future<void> _approveIssue(String issueId) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardColor(context),
+        title: Text(l10n.approveIssue,
+            style: TextStyle(
+                color: AppTheme.textPrimaryColor(context))),
+        content: Text(
+          l10n.confirmApproveIssue,
+          style: TextStyle(
+              color: AppTheme.textSecondaryColor(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.approve),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .update({
+        'status': 'approved',
+        'approvedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      final issueDoc = await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .get();
+      final data = issueDoc.data()!;
+      await NotificationService.send(
+        uid: data['uid'],
+        title: 'Issue Approved ✅',
+        body:
+        'Your issue "${data['title']}" has been approved',
+        type: 'issue_approved',
+        issueId: issueId,
+      );
+      await AuditService.log(
+        action: 'ISSUE_APPROVED',
+        description:
+        'Admin approved issue "${data['title']}"',
+        metadata: {
+          'issueId': issueId,
+          'issueTitle': data['title']
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.approved} ✅'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  // ── REJECT ───────────────────────────────────────────────────────
+  Future<void> _rejectIssue(String issueId) async {
+    final l10n = AppLocalizations.of(context)!;
+    final reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    String? rejectionReason;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardColor(context),
+        title: Text(l10n.rejectIssue,
+            style: TextStyle(
+                color: AppTheme.textPrimaryColor(context))),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: reasonController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              labelText: l10n.reasonRejection,
+              hintText: l10n.explainRejection,
+              alignLabelWithHint: true,
+            ),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return 'Reason is required';
+              }
+              if (v.trim().length < 10) {
+                return 'Please provide more detail';
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l10n.cancel),
+          ),
+          ElevatedButton(
+            style:
+            ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                rejectionReason = reasonController.text.trim();
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: Text(l10n.reject),
+          ),
+        ],
+      ),
+    );
+
+    reasonController.dispose();
+    if (rejectionReason == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .update({
+        'status': 'rejected',
+        'rejectionReason': rejectionReason,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      final issueDoc = await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .get();
+      final data = issueDoc.data()!;
+      await NotificationService.send(
+        uid: data['uid'],
+        title: 'Issue Rejected ❌',
+        body:
+        'Your issue "${data['title']}" has been rejected',
+        type: 'issue_rejected',
+        issueId: issueId,
+      );
+      await AuditService.log(
+        action: 'ISSUE_REJECTED',
+        description:
+        'Admin rejected issue "${data['title']}"',
+        metadata: {
+          'issueId': issueId,
+          'issueTitle': data['title'],
+          'reason': rejectionReason,
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.rejected),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  // ── UPDATE STATUS ────────────────────────────────────────────────
+  Future<void> _updateStatus(
+      String issueId, String currentStatus) async {
+    final l10n = AppLocalizations.of(context)!;
+
+    // ← ALL possible transitions
+    final Map<String, List<String>> allowedTransitions = {
+      'approved': ['in_progress', 'resolved'],
+      'in_progress': ['resolved'],
+      'pending': ['approved', 'rejected'],
+    };
+
+    final nextStatuses = allowedTransitions[currentStatus];
+    if (nextStatuses == null || nextStatuses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            currentStatus == 'resolved'
+                ? 'This issue is already resolved'
+                : 'No further status updates available',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // ← Default to first option
+    String selected = nextStatuses.first;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          backgroundColor: AppTheme.cardColor(context),
+          title: Text(
+            l10n.updateStatus,
+            style: TextStyle(
+                color: AppTheme.textPrimaryColor(context)),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Current: ${_statusConfig(l10n)[currentStatus]!['label']}',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSecondaryColor(context),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Move to:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimaryColor(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...nextStatuses.map((status) {
+                final config = _statusConfig(l10n)[status]!;
+                final color = config['color'] as Color;
+                return GestureDetector(
+                  onTap: () =>
+                      setStateDialog(() => selected = status),
+                  child: AnimatedContainer(
+                    duration:
+                    const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: selected == status
+                          ? color.withOpacity(0.12)
+                          : AppTheme.isDark(context)
+                          ? const Color(0xFF30363D)
+                          : const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMd),
+                      border: Border.all(
+                        color: selected == status
+                            ? color
+                            : Colors.transparent,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          config['icon'] as IconData,
+                          color: color,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          config['label'] as String,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (selected == status)
+                          Icon(Icons.check_circle,
+                              color: color, size: 18),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(l10n.update),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .update({
+        'status': selected,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      await AuditService.log(
+        action: 'STATUS_UPDATED',
+        description:
+        'Admin updated issue status to "$selected"',
+        metadata: {'issueId': issueId, 'newStatus': selected},
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              '${_statusConfig(l10n)[selected]!['label']} ✅'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  // ── ASSIGN TO FIELD OFFICER ──────────────────────────────────────
+  Future<void> _assignToFO(String issueId) async {
+    final l10n = AppLocalizations.of(context)!;
+
+    final foSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'fo')
+        .get();
+
+    if (!mounted) return;
+
+    if (foSnap.docs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No field officers registered yet'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    String? selectedFOId;
+    String? selectedFOName;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          backgroundColor: AppTheme.cardColor(context),
+          title: Text(
+            l10n.assignToFO,
+            style: TextStyle(
+                color: AppTheme.textPrimaryColor(context)),
+          ),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.4,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: foSnap.docs.map((doc) {
+              final data = doc.data();
+              final isSelected = selectedFOId == doc.id;
+              return GestureDetector(
+                onTap: () => setStateDialog(() {
+                  selectedFOId = doc.id;
+                  selectedFOName = data['name'];
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppTheme.primary.withOpacity(0.1)
+                        : AppTheme.isDark(context)
+                        ? const Color(0xFF30363D)
+                        : const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMd),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppTheme.primary
+                          : Colors.transparent,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // ← Avatar with initials
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: AppTheme.primary
+                            .withOpacity(0.15),
+                        child: Text(
+                          (data['name'] ?? '?')[0]
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data['name'] ?? '',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: AppTheme
+                                    .textPrimaryColor(context),
+                              ),
+                            ),
+                            Text(
+                              data['email'] ?? '',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme
+                                    .textSecondaryColor(
+                                    context),
+                              ),
+                            ),
+                            Text(
+                              data['phone'] ?? '',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme
+                                    .textSecondaryColor(
+                                    context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isSelected)
+                        const Icon(Icons.check_circle,
+                            color: AppTheme.primary, size: 20),
+                    ],
+                  ),
+                ),
+              );
+                }).toList(),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            ElevatedButton(
+              onPressed: selectedFOId == null
+                  ? null
+                  : () => Navigator.of(ctx).pop(true),
+              child: Text(l10n.assign),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true || selectedFOId == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .update({
+        'assignedTo': selectedFOId,
+        'assignedToName': selectedFOName,
+        'assignedAt': FieldValue.serverTimestamp(),
+        'taskStatus': 'assigned',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      final issueDoc = await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .get();
+      final data = issueDoc.data()!;
+      await NotificationService.send(
+        uid: selectedFOId!,
+        title: 'New Task Assigned 📋',
+        body:
+        'You have been assigned to "${data['title']}"',
+        type: 'task_assigned',
+        issueId: issueId,
+      );
+      await AuditService.log(
+        action: 'TASK_ASSIGNED',
+        description:
+        'Admin assigned "${data['title']}" to $selectedFOName',
+        metadata: {
+          'issueId': issueId,
+          'assignedTo': selectedFOId,
+          'assignedToName': selectedFOName,
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              '${l10n.assignToFO}: $selectedFOName ✅'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  // ── ISSUE DETAIL BOTTOM SHEET ────────────────────────────────────
+  void _showIssueDetail(
+      Map<String, dynamic> data, String issueId) {
+    final l10n = AppLocalizations.of(context)!;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        minChildSize: 0.4,
+        builder: (ctx, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor(context),
+            borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24)),
+          ),
+          child: ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(20),
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.borderColor(context),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Title + status
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      data['title'] ?? '',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color:
+                        AppTheme.textPrimaryColor(context),
+                      ),
+                    ),
+                  ),
+                  _statusBadge(
+                      data['status'] ?? 'pending', l10n),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              _detailRow(Icons.person_outline, l10n.reportedBy,
+                  data['userName'] ?? ''),
+              const SizedBox(height: 6),
+              _detailRow(Icons.category_outlined, l10n.issueType,
+                  data['issueType'] ?? ''),
+              const SizedBox(height: 6),
+              _detailRow(
+                Icons.access_time,
+                l10n.submitted,
+                data['createdAt'] != null
+                    ? _formatDate(
+                    data['createdAt'].toDate())
+                    : 'Unknown',
+              ),
+              const Divider(height: 24),
+
+              // Description
+              Text(
+                l10n.description,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: AppTheme.textPrimaryColor(context),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                data['description'] ?? '',
+                style: TextStyle(
+                  color:
+                  AppTheme.textSecondaryColor(context),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ── STATUS TIMELINE ──────────────────────────────
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 12),
+              Text(
+                l10n.issueProgress,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: AppTheme.textPrimaryColor(context),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildTimeline(data, context),
+              const SizedBox(height: 16),
+
+              // Image
+              if (data['imageUrl'] != null) ...[
+                Text(
+                  l10n.photoEvidence,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color:
+                    AppTheme.textPrimaryColor(context),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    data['imageUrl'],
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (ctx, child, progress) {
+                      if (progress == null) return child;
+                      return const SizedBox(
+                        height: 200,
+                        child: Center(
+                            child:
+                            CircularProgressIndicator()),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.grey,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Map
+              if (data['latitude'] != null &&
+                  data['longitude'] != null) ...[
+                Text(
+                  l10n.locationLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color:
+                    AppTheme.textPrimaryColor(context),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    height: 180,
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter: LatLng(
+                          data['latitude'],
+                          data['longitude'],
+                        ),
+                        initialZoom: 15,
+                        interactionOptions:
+                        const InteractionOptions(
+                          flags: InteractiveFlag.none,
+                        ),
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName:
+                          'com.muscat.municipality',
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: LatLng(
+                                data['latitude'],
+                                data['longitude'],
+                              ),
+                              child: const Icon(
+                                Icons.location_pin,
+                                color: Colors.red,
+                                size: 40,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              const Divider(),
+              const SizedBox(height: 12),
+
+              // ── ASSIGNED TO ──────────────────────────
+              if (data['assignedTo'] != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6A1B9A)
+                        .withOpacity(0.08),
+                    borderRadius:
+                    BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(
+                      color: const Color(0xFF6A1B9A)
+                          .withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Color(0xFF6A1B9A),
+                        child: Icon(Icons.engineering,
+                            color: Colors.white, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.fieldOfficer,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF6A1B9A),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              data['assignedToName'] ?? '',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme
+                                    .textPrimaryColor(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // ← Reassign button
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _assignToFO(issueId);
+                        },
+                        child: Text(
+                          'Reassign',
+                          style: const TextStyle(
+                            color: Color(0xFF6A1B9A),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+
+              // ── ACTION BUTTONS ───────────────────────
+
+              // Pending → Approve or Reject
+              if (data['status'] == 'pending') ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(
+                            Icons.cancel_outlined,
+                            color: Colors.red),
+                        label: Text(l10n.reject,
+                            style: const TextStyle(
+                                color: Colors.red)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(
+                              color: Colors.red),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _rejectIssue(issueId);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(
+                            Icons.check_circle_outline),
+                        label: Text(l10n.approve),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _approveIssue(issueId);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              // Approved or In Progress
+              if (data['status'] == 'approved' ||
+                  data['status'] == 'in_progress') ...[
+                // Assign button if not yet assigned
+                if (data['assignedTo'] == null) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.person_add),
+                      label: Text(l10n.assignToFO),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                        const Color(0xFF6A1B9A),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _assignToFO(issueId);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
+                // Update status button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.update),
+                    label: Text(l10n.updateStatus),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _updateStatus(
+                          issueId, data['status']);
+                    },
+                  ),
+                ),
+              ],
+
+              // Resolved or Rejected
+              if (data['status'] == 'resolved' ||
+                  data['status'] == 'rejected') ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.isDark(context)
+                        ? Colors.white.withOpacity(0.05)
+                        : Colors.black.withOpacity(0.04),
+                    borderRadius:
+                    BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    data['status'] == 'resolved'
+                        ? '✅ ${l10n.resolved}'
+                        : '❌ ${l10n.rejected}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppTheme.textSecondaryColor(
+                          context),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}  '
+        '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  // ── STATUS TIMELINE ────────────────────────────────────────────────
+  Widget _buildTimeline(Map<String, dynamic> data, BuildContext context) {
+    final status = data['status'] ?? 'pending';
+
+    // Define all possible stages in order
+    final List<Map<String, dynamic>> stages = [
+      {
+        'key': 'submitted',
+        'label': 'Submitted',
+        'labelAr': 'تم التقديم',
+        'icon': Icons.upload_outlined,
+        'color': const Color(0xFF0EA5E9),
+        'timestamp': data['createdAt'],
+        'done': true, // always done
+      },
+      {
+        'key': 'approved',
+        'label': 'Approved',
+        'labelAr': 'تمت الموافقة',
+        'icon': Icons.check_circle_outline,
+        'color': Colors.blue,
+        'timestamp': data['approvedAt'],
+        'done': ['approved', 'in_progress', 'resolved']
+            .contains(status),
+      },
+      {
+        'key': 'assigned',
+        'label': 'Assigned to Officer',
+        'labelAr': 'تم التعيين',
+        'icon': Icons.engineering_outlined,
+        'color': const Color(0xFF7C3AED),
+        'timestamp': data['assignedAt'],
+        'done': data['assignedTo'] != null,
+      },
+      {
+        'key': 'in_progress',
+        'label': 'In Progress',
+        'labelAr': 'قيد التنفيذ',
+        'icon': Icons.construction_outlined,
+        'color': Colors.purple,
+        'timestamp': data['updatedAt'],
+        'done': ['in_progress', 'resolved'].contains(status),
+      },
+      {
+        'key': 'resolved',
+        'label': 'Resolved',
+        'labelAr': 'تم الحل',
+        'icon': Icons.task_alt,
+        'color': const Color(0xFF2E7D32),
+        'timestamp': data['updatedAt'],
+        'done': status == 'resolved',
+      },
+    ];
+
+    // If rejected, show rejection stage instead of rest
+    if (status == 'rejected') {
+      stages.removeRange(1, stages.length);
+      stages.add({
+        'key': 'rejected',
+        'label': 'Rejected',
+        'labelAr': 'مرفوض',
+        'icon': Icons.cancel_outlined,
+        'color': Colors.red,
+        'timestamp': data['updatedAt'],
+        'done': true,
+      });
+    }
+
+    final isArabic = context.read<SettingsProvider>().isArabic;
+
+    return Column(
+      children: stages.asMap().entries.map((entry) {
+        final index = entry.key;
+        final stage = entry.value;
+        final isDone = stage['done'] as bool;
+        final isLast = index == stages.length - 1;
+        final color = isDone
+            ? stage['color'] as Color
+            : AppTheme.borderColor(context);
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── LEFT SIDE: icon + line ──────────
+            SizedBox(
+              width: 40,
+              child: Column(
+                children: [
+                  // Circle icon
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: isDone
+                          ? (stage['color'] as Color).withOpacity(0.12)
+                          : AppTheme.borderColor(context)
+                          .withOpacity(0.3),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: color,
+                        width: isDone ? 2 : 1,
+                      ),
+                    ),
+                    child: Icon(
+                      stage['icon'] as IconData,
+                      size: 16,
+                      color: isDone
+                          ? stage['color'] as Color
+                          : AppTheme.textSecondaryColor(context),
+                    ),
+                  ),
+                  // Connecting line
+                  if (!isLast)
+                    Container(
+                      width: 2,
+                      height: 40,
+                      color: isDone
+                          ? (stage['color'] as Color).withOpacity(0.3)
+                          : AppTheme.borderColor(context),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // ── RIGHT SIDE: label + time ────────
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isArabic
+                          ? stage['labelAr'] as String
+                          : stage['label'] as String,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isDone
+                            ? FontWeight.w700
+                            : FontWeight.w400,
+                        color: isDone
+                            ? AppTheme.textPrimaryColor(context)
+                            : AppTheme.textSecondaryColor(context),
+                      ),
+                    ),
+                    if (isDone && stage['timestamp'] != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatDate(
+                            (stage['timestamp'] as dynamic).toDate()
+                            as DateTime),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondaryColor(context),
+                        ),
+                      ),
+                    ] else if (!isDone) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        isArabic ? 'في الانتظار' : 'Pending',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondaryColor(context),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _detailRow(
+      IconData icon, String label, String value) {
+    return Builder(builder: (context) {
+      return Row(
+        children: [
+          Icon(icon,
+              size: 15,
+              color: AppTheme.textSecondaryColor(context)),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSecondaryColor(context),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textPrimaryColor(context),
+              ),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor(context),
+      appBar: AppBar(
+        backgroundColor: AppTheme.backgroundColor(context),
+        title: Text(l10n.issueManagement),
+      ),
+      body: Column(
+        children: [
+          // ── FILTER CHIPS ─────────────────────────────
+          Padding(
+            padding:
+            const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final filter in [
+                    'all',
+                    'pending',
+                    'approved',
+                    'rejected',
+                    'in_progress',
+                    'resolved',
+                  ])
+                    Padding(
+                      padding:
+                      const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(
+                          filter == 'all'
+                              ? l10n.all
+                              : _statusConfig(
+                              l10n)[filter]![
+                          'label'] as String,
+                        ),
+                        selected: _selectedFilter == filter,
+                        onSelected: (_) => setState(
+                                () => _selectedFilter = filter),
+                        selectedColor: AppTheme.primary
+                            .withOpacity(0.15),
+                        checkmarkColor: AppTheme.primary,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── ISSUE LIST ────────────────────────────────
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('issues')
+                  .orderBy('createdAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(
+                      child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                      child: Text(
+                          'Error: ${snapshot.error}'));
+                }
+
+                var docs = snapshot.data?.docs ?? [];
+
+                if (_selectedFilter != 'all') {
+                  docs = docs.where((d) {
+                    final data =
+                    d.data() as Map<String, dynamic>;
+                    return (data['status'] ?? '') ==
+                        _selectedFilter;
+                  }).toList();
+                }
+
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment:
+                      MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox,
+                            size: 48,
+                            color: AppTheme
+                                .textSecondaryColor(context)
+                                .withOpacity(0.4)),
+                        const SizedBox(height: 8),
+                        Text(
+                          _selectedFilter == 'all'
+                              ? l10n.noIssuesSubmitted
+                              : '${l10n.noIssuesSubmitted} (${_statusConfig(l10n)[_selectedFilter]!['label']})',
+                          style: TextStyle(
+                            color: AppTheme
+                                .textSecondaryColor(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: docs.length,
+                  separatorBuilder: (_, __) =>
+                  const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final data =
+                    doc.data() as Map<String, dynamic>;
+                    final status =
+                        data['status'] ?? 'pending';
+                    final config =
+                        _statusConfig(l10n)[status] ??
+                            _statusConfig(l10n)['pending']!;
+                    final color = config['color'] as Color;
+                    final isAssigned =
+                        data['assignedTo'] != null;
+                    final lat =
+                    (data['latitude'] as num?)?.toDouble();
+                    final lng =
+                    (data['longitude'] as num?)?.toDouble();
+                    final locationText = (lat != null && lng != null)
+                        ? '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}'
+                        : 'No location';
+
+                    return GestureDetector(
+                      onTap: () =>
+                          _showIssueDetail(data, doc.id),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.cardColor(context),
+                          borderRadius:
+                          BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.shadowColor(
+                                  context),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                            children: [
+                              // ── ROW 1: icon · title/type · status ──
+                              Row(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 42,
+                                    height: 42,
+                                    decoration: BoxDecoration(
+                                      color:
+                                      color.withOpacity(0.1),
+                                      borderRadius:
+                                      BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      _getIssueIcon(
+                                          data['issueType']),
+                                      color: color,
+                                      size: 22,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          data['title'] ?? '',
+                                          maxLines: 1,
+                                          overflow:
+                                          TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontWeight:
+                                            FontWeight.w700,
+                                            fontSize: 14,
+                                            color: AppTheme
+                                                .textPrimaryColor(
+                                                context),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          data['issueType'] ?? '',
+                                          maxLines: 1,
+                                          overflow:
+                                          TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: AppTheme
+                                                .textSecondaryColor(
+                                                context),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _statusBadge(
+                                      status, l10n),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Divider(
+                                height: 1,
+                                thickness: 1,
+                                color: AppTheme.borderColor(context),
+                              ),
+                              const SizedBox(height: 10),
+
+                              // ── ROW 2: location · reporter · [FO] · time ──
+                              Row(
+                                children: [
+                                  Icon(Icons.location_on_outlined,
+                                      size: 12,
+                                      color: AppTheme
+                                          .textSecondaryColor(
+                                          context)),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      locationText,
+                                      maxLines: 1,
+                                      overflow:
+                                      TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme
+                                            .textSecondaryColor(
+                                            context),
+                                      ),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Icon(Icons.person_outline,
+                                      size: 12,
+                                      color: AppTheme
+                                          .textSecondaryColor(
+                                          context)),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      data['userName'] ?? '',
+                                      maxLines: 1,
+                                      overflow:
+                                      TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme
+                                            .textSecondaryColor(
+                                            context),
+                                      ),
+                                    ),
+                                  ),
+                                  if (isAssigned) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                            0xFF6A1B9A)
+                                            .withOpacity(0.1),
+                                        borderRadius:
+                                        BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: const Color(
+                                              0xFF6A1B9A)
+                                              .withOpacity(0.4),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize:
+                                        MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                              Icons.engineering,
+                                              size: 11,
+                                              color: Color(
+                                                  0xFF6A1B9A)),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            data['assignedToName'] ??
+                                                '',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Color(
+                                                  0xFF6A1B9A),
+                                              fontWeight:
+                                              FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(width: 8),
+                                  Icon(Icons.access_time,
+                                      size: 12,
+                                      color: AppTheme
+                                          .textSecondaryColor(
+                                          context)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _timeAgo(data['createdAt']),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppTheme
+                                          .textSecondaryColor(
+                                          context),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
